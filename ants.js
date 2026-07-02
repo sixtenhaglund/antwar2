@@ -61,12 +61,22 @@ function drawAnt(a) {
     ctx.stroke();
   }
 
-  // bite: head lunges a little and jaws snap shut mid-bite
+  // bite in three phases: wind up (head back), charge (head forward + jaws
+  // shut), recover (head back to rest, jaws reopen).
   let lunge = 0, bite = 0;
   if (a.biteAnim > 0) {
-    const p = 1 - a.biteAnim / BITE_TIME;    // 0 → 1
-    bite = Math.sin(p * Math.PI);            // 0 → 1 → 0
-    lunge = Math.sin(p * Math.PI) * 1.2;
+    const p = 1 - a.biteAnim / BITE_TIME;         // 0 → 1 over the whole bite
+    if (p < 0.35) {                                // wind-up: pull the head back
+      lunge = -1.2 * (p / 0.35);
+    } else if (p < 0.6) {                          // charge: shoot forward + snap shut
+      const t = (p - 0.35) / 0.25;
+      lunge = -1.2 + t * 2.6;                      // -1.2 → +1.4
+      bite = t;
+    } else {                                       // recover: ease back, jaws reopen
+      const t = (p - 0.6) / 0.4;
+      lunge = 1.4 - t * 1.4;                       // +1.4 → 0
+      bite = 1 - t;
+    }
   }
 
   // body: three ellipses (head, thorax, abdomen); only the head lunges
