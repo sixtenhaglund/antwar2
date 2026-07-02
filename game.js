@@ -300,7 +300,7 @@ document.getElementById("howBtn").addEventListener("click", () => {
     panel.dataset.showing = "";
   } else {
     panel.innerHTML =
-      "Move with <b>WASD</b> — your ant faces the way it walks.<br>" +
+      "Aim with the <b>mouse</b> · <b>W</b> moves toward the cursor, <b>S</b> back, <b>A/D</b> strafe.<br>" +
       "Left-click to bite &amp; dig through the rock.";
     panel.dataset.showing = "how";
   }
