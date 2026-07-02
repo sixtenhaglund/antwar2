@@ -113,7 +113,9 @@ function findPath(si, sj, gi, gj) {
       if (ni < 0 || nj < 0 || ni >= GRIDN || nj >= GRIDN) continue;
       const nk = rockKey(ni, nj);
       if (closed.has(nk)) continue;
-      const stepCost = rockGrid.has(nk) ? 7 : 1;     // rock costs more (digging)
+      const rk = rockGrid.get(nk);
+      if (rk && rk.border) continue;                 // can't path through the wall
+      const stepCost = rk ? 7 : 1;                   // rock costs more (digging)
       const g = cur.g + stepCost;
       const existing = nodes.get(nk);
       if (!existing || g < existing.g) {
