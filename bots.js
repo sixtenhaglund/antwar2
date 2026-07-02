@@ -64,11 +64,8 @@ function updateBot(e) {
     e.pathIndex = 1;
   }
 
-  // Stop and fight once in biting range of a visible enemy.
-  const inMelee = target && Math.hypot(e.x - target.x, e.y - target.y) < 28;
-
   e.moving = false;
-  if (!inMelee && e.path && e.pathIndex < e.path.length) {
+  if (e.path && e.pathIndex < e.path.length) {
     const cell = e.path[e.pathIndex];
     const c = cellCenter(cell);
     if (rockGrid.has(rockKey(cell.i, cell.j))) {   // dig the next cell if it's rock
