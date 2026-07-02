@@ -8,7 +8,10 @@ const nests = [
 for (const n of nests) {
   n.queen = { x: n.x, y: n.y, size: 26, radius: 22, color: n.color,
               team: n.team, hp: 150, maxHp: 150, isQueen: true, dead: false };
+  n.food = 0;   // food pile at the nest
 }
+
+const caves = [];   // centers of the small random caves (filled by placeRocks)
 
 // ---- Breakable rocks on a grid (dig through them) ----
 const rocks = [];
@@ -37,6 +40,25 @@ function placeRocks() {
       rocks.push(r);
       rockGrid.set(rockKey(i, j), r);
     }
+  }
+
+  // carve a handful of small random caves (open rooms in the rock)
+  caves.length = 0;
+  for (let c = 0; c < 14; c++) {
+    const cx = 250 + Math.random() * (WORLD - 500);
+    const cy = 250 + Math.random() * (WORLD - 500);
+    let nearNest = false;
+    for (const n of nests) if (Math.hypot(cx - n.x, cy - n.y) < 320) nearNest = true;
+    if (nearNest) continue;
+    const rad = 45 + Math.random() * 45;
+    for (const r of rocks) {
+      if (r.border || r.broken) continue;
+      if (Math.hypot(r.x - cx, r.y - cy) < rad) {
+        r.broken = true;
+        rockGrid.delete(rockKey(r.i, r.j));
+      }
+    }
+    caves.push({ x: cx, y: cy });
   }
 }
 placeRocks();
@@ -214,5 +236,19 @@ function drawNests() {
     ctx.font = "16px monospace";
     ctx.textAlign = "center";
     ctx.fillText(n.team.toUpperCase() + (n.team === player.team ? " (you)" : ""), n.x, n.y - 58);
+
+    // food pile: a little heap of green morsels + a count
+    const pile = Math.min(30, n.food);
+    for (let k = 0; k < pile; k++) {
+      const px = n.x + 60 + (k % 6) * 6;
+      const py = n.y + 40 - Math.floor(k / 6) * 6;
+      ctx.fillStyle = "#9ad84a";
+      ctx.beginPath();
+      ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#9ad84a";
+    ctx.font = "12px monospace";
+    ctx.fillText("food " + n.food, n.x + 78, n.y + 62);
   }
 }

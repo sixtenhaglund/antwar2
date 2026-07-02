@@ -18,6 +18,8 @@ const player = {
   biteAnim: 0,        // counts down during a bite
   biteCooldown: 0,
   hp: 40, maxHp: 40,
+  stamina: STAMINA_MAX, maxStamina: STAMINA_MAX,
+  carrying: null,     // an egg you're carrying (or null)
 };
 
 // ---- Curved, spiky mandibles (jaws) ----

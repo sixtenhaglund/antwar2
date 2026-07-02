@@ -6,11 +6,12 @@ function allAnts() {
   return list;
 }
 
-// everything that can be hit: ants + queens
+// everything that can be hit: ants + queens + enemy eggs
 function combatants() {
   const list = player.hatching ? [] : [player];
   for (const b of bots) if (!b.dead) list.push(b);
   for (const n of nests) if (!n.queen.dead) list.push(n.queen);
+  for (const g of eggs) if (!g.dead && !g.isPlayer) list.push(g);   // eggs are destroyable
   return list;
 }
 
@@ -18,6 +19,11 @@ function ownNest(a) { return nests.find(n => n.team === a.team); }
 
 // Send an ant back to its queen with full health.
 function respawn(a) {
+  // drop any carried egg where you died (its timer resumes there)
+  if (a === player && a.carrying) {
+    a.carrying.carried = false;
+    a.carrying = null;
+  }
   const nest = ownNest(a);
   a.x = nest.x + (Math.random() * 60 - 30);
   a.y = nest.y + 50 + Math.random() * 30;
@@ -44,14 +50,26 @@ function hurt(t, dmg) {
   }
 }
 
-// Melee: damage enemy ants OR the enemy queen right in front of `a`'s mouth.
+// Melee: damage enemy ants / queen / eggs, and neutral beetles, in front of `a`.
 function meleeHit(a, dmg) {
   const mx = a.x + Math.cos(a.angle) * a.size * 1.2;
   const my = a.y + Math.sin(a.angle) * a.size * 1.2;
   const reach = a.size * 1.1;
   for (const t of combatants()) {
     if (t === a || t.team === a.team) continue;   // no friendly fire
-    if (Math.hypot(mx - t.x, my - t.y) < reach + t.radius) hurt(t, dmg);
+    if (Math.hypot(mx - t.x, my - t.y) < reach + (t.radius || 6)) {
+      spawnBlood(t.x, t.y);
+      hurt(t, dmg);
+    }
+  }
+  // beetles are neutral; killing one gives food to the attacker's colony
+  for (const bug of beetles) {
+    if (bug.dead) continue;
+    if (Math.hypot(mx - bug.x, my - bug.y) < reach + bug.radius) {
+      spawnBlood(bug.x, bug.y);
+      bug.hp -= dmg;
+      if (bug.hp <= 0) { bug.dead = true; ownNest(a).food += FOOD_PER_BEETLE; }
+    }
   }
 }
 

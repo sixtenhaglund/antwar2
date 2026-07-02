@@ -19,12 +19,15 @@ window.addEventListener("wheel", (e) => {
 
 // ---- Game state: menu until you press Play ----
 let gameState = "menu";
+let fPrev = false;   // for edge-detecting the F key (pick up / place egg)
 
 function startGame() {
   player.team = "red";
   player.color = TEAMS[player.team].color;   // real team color in-game
   player.hp = player.maxHp;
   player.hatching = true;                     // you hatch from an egg too
+  player.stamina = player.maxStamina;
+  player.carrying = null;
   player.x = nests[0].x;
   player.y = nests[0].y + 60;
   // reset queens; they lay the ants over time (nobody pre-spawns)
@@ -34,9 +37,16 @@ function startGame() {
     n.queen.hp = n.queen.maxHp;
     n.queen.dead = false;
     n.layTimer = LAY_INTERVAL;
+    n.food = 0;
   }
   // lay your egg at the nest; the rest the queens produce over time
-  eggs.push({ x: player.x, y: player.y, team: "red", timer: EGG_TIME, isPlayer: true });
+  eggs.push({ x: player.x, y: player.y, team: "red", timer: EGG_TIME, isPlayer: true, dead: false, carried: false });
+  // beetles in the random caves
+  beetles.length = 0;
+  for (const c of caves) {
+    const count = 1 + Math.floor(Math.random() * 2);
+    for (let k = 0; k < count; k++) spawnBeetle(c.x + (Math.random() * 50 - 25), c.y + (Math.random() * 50 - 25));
+  }
   discovered.clear();
   document.getElementById("menu").style.display = "none";
   document.getElementById("hud").style.display = "block";
@@ -78,11 +88,18 @@ function update() {
     player.angle += diff * 0.3;
   }
 
+  // sprint with Shift (uses stamina; recovers when not sprinting)
+  // (Shift, not Ctrl — Ctrl+W would close the browser tab!)
+  const wantSprint = keys["shift"] && player.stamina > 0 && (keys["w"] || keys["s"] || keys["arrowup"] || keys["arrowdown"]);
+  if (wantSprint) player.stamina = Math.max(0, player.stamina - STAMINA_DRAIN);
+  else player.stamina = Math.min(player.maxStamina, player.stamina + STAMINA_REGEN);
+  const pSpd = wantSprint ? player.speed * SPRINT_MULT : player.speed;
+
   // W drives toward the cursor; S backs away from it.
   const fx = Math.cos(player.angle), fy = Math.sin(player.angle);   // toward cursor
   const sx = player.x, sy = player.y;
-  if (keys["w"] || keys["arrowup"])   { player.x += fx * player.speed; player.y += fy * player.speed; }
-  if (keys["s"] || keys["arrowdown"]) { player.x -= fx * player.speed; player.y -= fy * player.speed; }
+  if (keys["w"] || keys["arrowup"])   { player.x += fx * pSpd; player.y += fy * pSpd; }
+  if (keys["s"] || keys["arrowdown"]) { player.x -= fx * pSpd; player.y -= fy * pSpd; }
 
   // collide with queens and rocks, then stay in the world
   for (const n of nests) keepApart(player, n.queen);
@@ -129,7 +146,31 @@ function update() {
   if (player.biteAnim > 0) player.biteAnim--;
   if (player.biteCooldown > 0) player.biteCooldown--;
   healNearQueen(player);                 // heal when back at your nest
+
+  // F: pick up the nearest egg, or place the one you're carrying
+  if (keys["f"] && !fPrev) {
+    if (player.carrying) {
+      player.carrying.x = player.x;
+      player.carrying.y = player.y;
+      player.carrying.carried = false;   // timer resumes
+      player.carrying = null;
+    } else {
+      let best = null, bd = 32;
+      for (const g of eggs) {
+        if (g.dead || g.carried || g.isPlayer) continue;
+        const d = Math.hypot(g.x - player.x, g.y - player.y);
+        if (d < bd) { best = g; bd = d; }
+      }
+      if (best) { best.carried = true; player.carrying = best; }   // timer pauses
+    }
+  }
+  // carried egg rides above your head
+  if (player.carrying) {
+    player.carrying.x = player.x;
+    player.carrying.y = player.y - player.size - 4;
+  }
   }   // end player control
+  fPrev = keys["f"];
 
   // eggs: queens lay & hatch reinforcements
   updateEggs();
@@ -141,6 +182,10 @@ function update() {
 
   // ants push each other apart
   resolveAntCollisions();
+
+  // neutral beetles + blood particles
+  updateBeetles();
+  updateParticles();
 }
 
 // ---- Minimap (screen-space overview in the corner) ----
@@ -158,13 +203,18 @@ function drawMinimap() {
   ctx.lineWidth = 2;
   ctx.strokeRect(mx, my, size, size);
 
-  // explored terrain: floor (dug) vs wall (rock), different colors
+  // explored terrain — like the game's fog: bright where currently visible,
+  // dim where only remembered. floor vs wall get different shades.
   const cell = Math.max(1, ROCK_STEP * scale);
   for (const key of discovered) {
     const c = key.split(",");
     const cx = ROCK_STEP / 2 + (+c[0]) * ROCK_STEP;
     const cy = ROCK_STEP / 2 + (+c[1]) * ROCK_STEP;
-    ctx.fillStyle = rockGrid.has(key) ? "#7a5c33" : "#3a2a16";   // wall : floor
+    const wall = rockGrid.has(key);
+    const litNow = lit.has(key);
+    ctx.fillStyle = wall
+      ? (litNow ? "#8a6a3c" : "#4a3826")
+      : (litNow ? "#4a3820" : "#241a10");
     ctx.fillRect(toX(cx) - cell / 2, toY(cy) - cell / 2, cell, cell);
   }
 
@@ -208,9 +258,11 @@ function draw() {
   drawGround();
   drawRocks();
   drawNests();
+  drawBeetles();
   drawEggs();
   drawBots();
   if (!player.hatching) drawAnt(player);
+  drawParticles();   // blood on top
 
   drawFog();   // hide everything the player can't see (rock blocks vision)
 
@@ -233,6 +285,16 @@ function draw() {
   ctx.restore();
 
   drawMinimap();   // screen-fixed overview (after the camera reset)
+
+  // stamina bar (bottom center)
+  if (!player.hatching) {
+    const w = 200, h = 8;
+    const x = canvas.width / 2 - w / 2, y = canvas.height - 26;
+    ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#e8c84a"; ctx.fillRect(x, y, w * (player.stamina / player.maxStamina), h);
+    ctx.fillStyle = "#e8dcc0"; ctx.font = "10px monospace"; ctx.textAlign = "right";
+    ctx.fillText("STAMINA", x - 6, y + h);
+  }
 
   // win / lose banner
   if (gameState === "won" || gameState === "lost") {

@@ -8,6 +8,7 @@ function spawnBotAt(x, y, team) {
     walkPhase: 0, moving: false,
     biteAnim: 0, biteCooldown: 0,
     hp: 40, maxHp: 40, dead: false,
+    stamina: STAMINA_MAX,
     path: [], pathIndex: 1, pathTimer: Math.floor(Math.random() * 45),   // stagger repaths
     lastSeen: null, seenTimer: 0, sightRange: 300,
     searchTarget: null, searchTimer: 0,
@@ -17,14 +18,14 @@ function spawnBotAt(x, y, team) {
 // ---- Eggs: queens lay them; they hatch into ants after 5s ----
 const eggs = [];
 const POP_CAP = 25;         // max ants (+eggs) a queen keeps alive per team
-const EGG_TIME = 300;       // 5 seconds at 60fps
+const EGG_TIME = 1200;      // 20 seconds at 60fps
 const LAY_INTERVAL = 45;    // how often a queen lays (~0.75s), so they ramp up
 
 function teamCount(team) {
   let c = 0;
   if (player.team === team && !player.hatching) c++;   // the player counts too
   for (const b of bots) if (!b.dead && b.team === team) c++;
-  for (const g of eggs) if (g.team === team) c++;       // includes the player egg
+  for (const g of eggs) if (!g.dead && g.team === team) c++;   // includes the player egg
   return c;
 }
 
@@ -34,6 +35,8 @@ function layEgg(nest) {
     y: nest.y + 55 + Math.random() * 35,
     team: nest.team,
     timer: EGG_TIME,
+    hp: 15, maxHp: 15,      // 3 bites (5 dmg each) to destroy
+    dead: false, carried: false,
   });
 }
 
@@ -49,6 +52,8 @@ function updateEggs() {
   // hatch eggs whose timer ran out
   for (let i = eggs.length - 1; i >= 0; i--) {
     const g = eggs[i];
+    if (g.dead) { eggs.splice(i, 1); continue; }   // destroyed egg
+    if (g.carried) continue;                        // timer paused while carried
     if (--g.timer <= 0) {
       if (g.isPlayer) {                  // the player's egg hatches into you
         player.hatching = false;
@@ -64,8 +69,9 @@ function updateEggs() {
 
 function drawEggs() {
   for (const g of eggs) {
+    if (g.dead) continue;
     if (!lit.has(rockKey(cellIndex(g.x), cellIndex(g.y)))) continue;   // fog
-    ctx.fillStyle = "#f0e6c8";   // pale egg
+    ctx.fillStyle = g.hp < g.maxHp ? "#d8c090" : "#f0e6c8";   // dimmer when cracked
     ctx.beginPath();
     ctx.ellipse(g.x, g.y, 4.5, 6.5, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -133,6 +139,12 @@ function updateBot(e) {
   }
   const goal = chasing ? e.lastSeen : e.searchTarget;
 
+  // sprint while chasing (drains stamina; recovers while not)
+  const sprinting = chasing && e.stamina > 0;
+  if (sprinting) e.stamina = Math.max(0, e.stamina - STAMINA_DRAIN);
+  else e.stamina = Math.min(STAMINA_MAX, e.stamina + STAMINA_REGEN);
+  const spd = sprinting ? e.speed * SPRINT_MULT : e.speed;
+
   // re-plan often while chasing (beeline), less often otherwise
   if (--e.pathTimer <= 0) {
     e.pathTimer = chasing ? 8 : 45;
@@ -152,8 +164,8 @@ function updateBot(e) {
       while (diff >  Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
       e.angle += diff * 0.25;
-      e.x += (dx / d) * e.speed;
-      e.y += (dy / d) * e.speed;
+      e.x += (dx / d) * spd;
+      e.y += (dy / d) * spd;
       e.moving = true;
     }
   } else if (e.path && e.pathIndex < e.path.length) {
@@ -171,8 +183,8 @@ function updateBot(e) {
       while (diff >  Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
       e.angle += diff * 0.2;
-      e.x += (dx / d) * e.speed;
-      e.y += (dy / d) * e.speed;
+      e.x += (dx / d) * spd;
+      e.y += (dy / d) * spd;
       e.moving = true;
     } else {
       e.pathIndex++;
