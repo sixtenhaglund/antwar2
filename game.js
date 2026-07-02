@@ -70,6 +70,151 @@ function digAt(i, j, amount) {
   }
 }
 
+// ---- A* pathfinding over the grid ----
+// Every cell is passable, but ROCK cells cost more (they have to be dug), so
+// the enemy prefers existing tunnels and only digs when that's genuinely
+// shorter. 4-directional so it carves clean orthogonal tunnels.
+const GRIDN = Math.ceil(WORLD / ROCK_STEP);
+function clampCell(v) { return Math.max(0, Math.min(GRIDN - 1, v)); }
+
+function findPath(si, sj, gi, gj) {
+  si = clampCell(si); sj = clampCell(sj); gi = clampCell(gi); gj = clampCell(gj);
+  const nodes = new Map();
+  const open = new Set();
+  const closed = new Set();
+  const startK = rockKey(si, sj);
+  nodes.set(startK, { i: si, j: sj, g: 0, f: Math.abs(si - gi) + Math.abs(sj - gj), parent: null });
+  open.add(startK);
+
+  let iter = 0;
+  while (open.size && iter++ < 8000) {
+    // pick the open node with the lowest f
+    let curK = null, cur = null;
+    for (const k of open) {
+      const n = nodes.get(k);
+      if (!cur || n.f < cur.f) { cur = n; curK = k; }
+    }
+    if (cur.i === gi && cur.j === gj) {              // reached the goal → rebuild path
+      const path = [];
+      let n = cur;
+      while (n) { path.push({ i: n.i, j: n.j }); n = n.parent; }
+      return path.reverse();
+    }
+    open.delete(curK);
+    closed.add(curK);
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const ni = cur.i + di, nj = cur.j + dj;
+      if (ni < 0 || nj < 0 || ni >= GRIDN || nj >= GRIDN) continue;
+      const nk = rockKey(ni, nj);
+      if (closed.has(nk)) continue;
+      const stepCost = rockGrid.has(nk) ? 7 : 1;     // rock costs more (digging)
+      const g = cur.g + stepCost;
+      const existing = nodes.get(nk);
+      if (!existing || g < existing.g) {
+        nodes.set(nk, { i: ni, j: nj, g, f: g + Math.abs(ni - gi) + Math.abs(nj - gj), parent: cur });
+        open.add(nk);
+      }
+    }
+  }
+  return null;
+}
+
+// ---- Enemy ants (blue) that hunt the player ----
+const enemies = [];
+function spawnEnemy() {
+  const n = nests[1];   // blue nest
+  enemies.push({
+    x: n.x, y: n.y + 60,
+    size: 14, radius: 6, speed: 2.6,
+    angle: 0, color: n.color,
+    walkPhase: 0, moving: false,
+    biteAnim: 0, biteCooldown: 0,
+    hp: 40, maxHp: 40,
+    path: [], pathIndex: 1, pathTimer: 0,
+  });
+}
+
+function cellCenter(c) {
+  return { x: ROCK_STEP / 2 + c.i * ROCK_STEP, y: ROCK_STEP / 2 + c.j * ROCK_STEP };
+}
+
+function updateEnemy(e) {
+  // re-plan a route to the player every so often (rocks change, player moves)
+  if (--e.pathTimer <= 0) {
+    e.pathTimer = 45;
+    e.path = findPath(cellIndex(e.x), cellIndex(e.y), cellIndex(player.x), cellIndex(player.y)) || [];
+    e.pathIndex = 1;   // [0] is the cell it's already in
+  }
+
+  e.moving = false;
+  if (e.path && e.pathIndex < e.path.length) {
+    const cell = e.path[e.pathIndex];
+    const c = cellCenter(cell);
+
+    // if the next cell is still rock, dig it out
+    if (rockGrid.has(rockKey(cell.i, cell.j))) {
+      if (e.biteAnim <= 0 && e.biteCooldown <= 0) {
+        e.biteAnim = BITE_TIME;
+        e.biteCooldown = BITE_TIME + 4;
+      }
+      if (e.biteAnim === 10) digAt(cell.i, cell.j, 4);
+    }
+
+    // walk toward the cell (gliding its facing, like the player)
+    const dx = c.x - e.x, dy = c.y - e.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 3) {
+      const target = Math.atan2(dy, dx);
+      let diff = target - e.angle;
+      while (diff >  Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      e.angle += diff * 0.2;
+      e.x += (dx / d) * e.speed;
+      e.y += (dy / d) * e.speed;
+      e.moving = true;
+    } else {
+      e.pathIndex++;   // reached this cell, aim for the next
+    }
+  }
+
+  // bite menacingly when right next to the player
+  if (Math.hypot(e.x - player.x, e.y - player.y) < 42) {
+    const target = Math.atan2(player.y - e.y, player.x - e.x);
+    let diff = target - e.angle;
+    while (diff >  Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    e.angle += diff * 0.3;
+    if (e.biteAnim <= 0 && e.biteCooldown <= 0) {
+      e.biteAnim = BITE_TIME;
+      e.biteCooldown = BITE_TIME + 10;
+    }
+  }
+
+  // timers + can't clip through rock
+  if (e.biteAnim > 0) e.biteAnim--;
+  if (e.biteCooldown > 0) e.biteCooldown--;
+  if (e.moving) e.walkPhase += 0.35;
+  const bodyR = e.size * 0.85;
+  for (const r of rocks) {
+    if (r.broken) continue;
+    if (Math.abs(r.x - e.x) > 90 || Math.abs(r.y - e.y) > 90) continue;
+    keepOutOfRock(e, r, bodyR);
+  }
+}
+
+function drawEnemies() {
+  for (const e of enemies) {
+    drawAnt(e);
+    // hp bar
+    const w = e.size * 2.4;
+    const bx = e.x - w / 2, by = e.y - e.size - 14;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(bx, by, w, 4);
+    ctx.fillStyle = "#5ad25a";
+    ctx.fillRect(bx, by, w * (e.hp / e.maxHp), 4);
+  }
+}
+
 // ---- Collision helpers ----
 // Push circle `a` out of another circle `b`.
 function keepApart(a, b) {
@@ -110,6 +255,8 @@ function startGame() {
   player.color = nests[0].color;
   player.x = nests[0].x;
   player.y = nests[0].y + 60;
+  enemies.length = 0;
+  spawnEnemy();   // one blue hunter
   document.getElementById("menu").style.display = "none";
   document.getElementById("hud").style.display = "block";
   gameState = "playing";
@@ -197,6 +344,9 @@ function update() {
   }
   if (player.biteAnim > 0) player.biteAnim--;
   if (player.biteCooldown > 0) player.biteCooldown--;
+
+  // enemy ants
+  for (const e of enemies) updateEnemy(e);
 }
 
 // ---- Drawing ----
@@ -274,6 +424,7 @@ function draw() {
   ctx.strokeRect(0, 0, WORLD, WORLD);
   drawRocks();
   drawNests();
+  drawEnemies();
   drawAnt(player);
   // white ring so you can spot yourself
   ctx.strokeStyle = "#ffffff";
