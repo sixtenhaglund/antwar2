@@ -106,14 +106,20 @@ function updateBot(e) {
     e.seenTimer--;
   }
 
-  // Chase the last-seen enemy; otherwise push toward the ENEMY nest (with some
-  // spread) so the team advances to the front line instead of wandering.
+  // Chase the last-seen enemy. With nothing to do, either MINE (dig toward a
+  // random spot) or GO HOME to guard the queen — picked when a new goal is due.
   const chasing = e.seenTimer > 0 && e.lastSeen;
   if (!chasing) {
     const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 90;
     if (!e.searchTarget || reached || --e.searchTimer <= 0) {
-      const foeNest = nests.find(n => n.team !== e.team);
-      e.searchTarget = { x: foeNest.x + (Math.random() * 400 - 200), y: foeNest.y + (Math.random() * 400 - 200) };
+      if (Math.random() < 0.5) {
+        // mine: carve a tunnel toward a random spot
+        e.searchTarget = { x: 120 + Math.random() * (WORLD - 240), y: 120 + Math.random() * (WORLD - 240) };
+      } else {
+        // guard: head back near the queen
+        const home = ownNest(e).queen;
+        e.searchTarget = { x: home.x + (Math.random() * 120 - 60), y: home.y + (Math.random() * 120 - 60) };
+      }
       e.searchTimer = 300;
     }
   }
