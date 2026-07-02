@@ -52,8 +52,9 @@ function layEgg(nest) {
 }
 
 function updateEggs() {
-  // queens lay to keep their team up to the cap
+  // queens lay to keep their team up to the cap (a dead queen lays nothing)
   for (const n of nests) {
+    if (n.queen.dead) continue;
     n.layTimer = (n.layTimer || 0) - 1;
     if (n.layTimer <= 0) {
       n.layTimer = LAY_INTERVAL;
@@ -263,11 +264,18 @@ function botIdleBehavior(e) {
       }
     }
   } else if (e.role === "attacker") {
-    // head for the enemy nest — everyone converging naturally forms a group
+    // march on the NEAREST living enemy nest (converging forms a group)
     if (!e.searchTarget || reached || --e.searchTimer <= 0) {
-      const foe = nests.find(n => n.team !== e.team);
-      e.searchTarget = { x: foe.x + (Math.random() * 300 - 150), y: foe.y + (Math.random() * 300 - 150) };
-      e.searchTimer = 300;
+      let foe = null, fd = Infinity;
+      for (const n of nests) {
+        if (n.team === e.team || n.queen.dead) continue;
+        const d = Math.hypot(e.x - n.x, e.y - n.y);
+        if (d < fd) { foe = n; fd = d; }
+      }
+      if (foe) {
+        e.searchTarget = { x: foe.x + (Math.random() * 300 - 150), y: foe.y + (Math.random() * 300 - 150) };
+        e.searchTimer = 300;
+      }
     }
   } else {   // defender: patrol around its own queen
     if (!e.searchTarget || reached || --e.searchTimer <= 0) {

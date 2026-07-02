@@ -1,7 +1,9 @@
-// ---- The two teams ----
+// ---- The four teams (one per corner) ----
 const TEAMS = {
-  red:  { color: "#d0453f" },
-  blue: { color: "#4f8fe0" },
+  red:    { color: "#d0453f" },
+  blue:   { color: "#4f8fe0" },
+  yellow: { color: "#e0c840" },
+  green:  { color: "#4faf4f" },
 };
 
 // "You" — the ant you control.

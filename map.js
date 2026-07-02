@@ -1,9 +1,12 @@
 // ---- The map: nests, breakable rock grid, pathfinding, collision, rendering ----
 
-// A Red nest (yours) and a Blue nest on opposite sides.
+// Four nests, one in each corner (Red is yours, top-left).
+const NEST_INSET = 350;
 const nests = [
-  { team: "red",  color: "#d0453f", x: 300,         y: WORLD / 2 },
-  { team: "blue", color: "#4f8fe0", x: WORLD - 300, y: WORLD / 2 },
+  { team: "red",    color: TEAMS.red.color,    x: NEST_INSET,         y: NEST_INSET },
+  { team: "blue",   color: TEAMS.blue.color,   x: WORLD - NEST_INSET, y: NEST_INSET },
+  { team: "yellow", color: TEAMS.yellow.color, x: NEST_INSET,         y: WORLD - NEST_INSET },
+  { team: "green",  color: TEAMS.green.color,  x: WORLD - NEST_INSET, y: WORLD - NEST_INSET },
 ];
 for (const n of nests) {
   n.queen = { x: n.x, y: n.y, size: 26, radius: 22, color: n.color,
@@ -42,9 +45,9 @@ function placeRocks() {
     }
   }
 
-  // carve a handful of small random caves (open rooms in the rock)
+  // carve small random caves (open rooms in the rock)
   caves.length = 0;
-  for (let c = 0; c < 14; c++) {
+  for (let c = 0; c < 30; c++) {
     const cx = 250 + Math.random() * (WORLD - 500);
     const cy = 250 + Math.random() * (WORLD - 500);
     let nearNest = false;

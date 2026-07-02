@@ -52,9 +52,10 @@ function hurt(t, dmg) {
   if (t.dead) return;
   t.hp -= dmg;
   if (t.hp <= 0) {
-    if (t.isQueen) {                     // a queen died → game over
+    if (t.isQueen) {                     // a queen died
       t.dead = true;
-      gameState = (t.team === player.team) ? "lost" : "won";
+      if (t.team === player.team) gameState = "lost";
+      else if (!nests.some(n => n.team !== player.team && !n.queen.dead)) gameState = "won";   // last one standing
     } else if (t === player) {
       respawn(player);                   // you pop back at your queen
     } else {
