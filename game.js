@@ -274,6 +274,43 @@ function drawMinimap() {
   ctx.fill();
 }
 
+// grown ants a clan currently has (bots + you, if you're a grown ant)
+function antCount(team) {
+  let c = 0;
+  if (player.team === team && !player.hatching && !player.isLarva) c++;
+  for (const b of bots) if (!b.dead && b.team === team) c++;
+  return c;
+}
+
+// ---- Team scoreboard: a bar per clan across the top ----
+function drawTeamBars() {
+  const order = ["red", "blue", "yellow", "green"];
+  const barW = 150, barH = 20, gap = 10;
+  const totalW = order.length * barW + (order.length - 1) * gap;
+  let x = canvas.width / 2 - totalW / 2;
+  const y = 10;
+  ctx.textAlign = "left";
+  ctx.font = "12px monospace";
+  for (const team of order) {
+    const n = nests.find(nn => nn.team === team);
+    const out = n.queen.dead;
+    const count = antCount(team);
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(x, y, barW, barH);
+    if (!out) {
+      ctx.fillStyle = TEAMS[team].color;
+      ctx.fillRect(x, y, barW * Math.min(1, count / POP_CAP), barH);
+    }
+    ctx.strokeStyle = TEAMS[team].color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, barW, barH);
+    ctx.fillStyle = "#fff";
+    const label = team.toUpperCase() + (team === player.team ? " (you)" : "") + (out ? "  OUT" : "  " + count);
+    ctx.fillText(label, x + 6, y + 14);
+    x += barW + gap;
+  }
+}
+
 // ---- Draw ----
 function draw() {
   ctx.fillStyle = "#2a1d10";   // tunnel floor (ground)
@@ -322,6 +359,7 @@ function draw() {
   ctx.restore();
 
   drawMinimap();   // screen-fixed overview (after the camera reset)
+  drawTeamBars();  // clan scoreboard across the top
 
   // stamina bar (bottom center)
   if (!player.hatching) {
