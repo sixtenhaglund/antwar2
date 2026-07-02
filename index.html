@@ -7,7 +7,10 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Main menu (all there is for now) -->
+  <canvas id="game"></canvas>
+  <div id="hud">WASD move &nbsp;·&nbsp; aim mouse &nbsp;·&nbsp; click to bite / dig</div>
+
+  <!-- Main menu -->
   <div id="menu">
     <div class="ant">🐜</div>
     <h1>ANTWAR</h1>
@@ -18,12 +21,13 @@
       <button id="howBtn">How to play</button>
     </div>
 
-    <!-- a little panel that shows/hides -->
     <div id="panel"></div>
-
     <div class="footer">v0.1 &nbsp;·&nbsp; made by Sixten</div>
   </div>
 
-  <script src="menu.js"></script>
+  <!-- Scripts load in order and share their variables -->
+  <script src="input.js"></script>
+  <script src="ants.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>

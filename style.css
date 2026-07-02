@@ -4,6 +4,24 @@ html, body {
   font-family: monospace;
   color: #e8dcc0;
   overflow: hidden;
+  background: #1a1207;
+}
+
+canvas {
+  display: block;
+  position: fixed;
+  inset: 0;
+}
+
+/* controls hint, hidden until the game starts */
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  font-size: 14px;
+  opacity: 0.8;
+  pointer-events: none;
+  display: none;
 }
 
 /* ---- Main menu ---- */
