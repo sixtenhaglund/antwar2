@@ -470,7 +470,8 @@ function drawFog() {
       const cx = ROCK_STEP / 2 + i * ROCK_STEP;
       const cy = ROCK_STEP / 2 + j * ROCK_STEP;
       const visible = Math.hypot(cx - player.x, cy - player.y) < VISION && cellLOS(i, j);
-      if (!visible) ctx.fillRect(cx - s / 2, cy - s / 2, s, s);   // dark tile
+      // draw 1px bigger so neighboring tiles overlap and leave no seams
+      if (!visible) ctx.fillRect(cx - s / 2 - 0.5, cy - s / 2 - 0.5, s + 1, s + 1);
     }
   }
 }
