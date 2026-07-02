@@ -36,6 +36,8 @@ function computeLit() {
   for (const b of bots) {
     if (b.team === player.team) floodLight(b);
   }
+  // remember everything the whole team can see (fills the minimap, even far away)
+  for (const key of lit) discovered.add(key);
 }
 
 function drawFog() {
