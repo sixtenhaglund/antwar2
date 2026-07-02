@@ -62,8 +62,11 @@ function updateBot(e) {
     e.pathIndex = 1;
   }
 
+  // Stop and fight once close to a visible enemy (don't path into them).
+  const inMelee = target && !e.retreating && Math.hypot(e.x - target.x, e.y - target.y) < 40;
+
   e.moving = false;
-  if (e.path && e.pathIndex < e.path.length) {
+  if (!inMelee && e.path && e.pathIndex < e.path.length) {
     const cell = e.path[e.pathIndex];
     const c = cellCenter(cell);
     if (rockGrid.has(rockKey(cell.i, cell.j))) {   // dig the next cell if it's rock
