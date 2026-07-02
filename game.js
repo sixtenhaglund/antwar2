@@ -119,6 +119,18 @@ function findPath(si, sj, gi, gj) {
   return null;
 }
 
+// Can you see from (x1,y1) to (x2,y2), or does rock block the view?
+function hasLineOfSight(x1, y1, x2, y2) {
+  const dist = Math.hypot(x2 - x1, y2 - y1);
+  const steps = Math.ceil(dist / (ROCK_STEP * 0.4));   // sample along the line
+  for (let s = 1; s < steps; s++) {
+    const t = s / steps;
+    const x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t;
+    if (rockGrid.has(rockKey(cellIndex(x), cellIndex(y)))) return false;   // rock in the way
+  }
+  return true;
+}
+
 // ---- Enemy ants (blue) that hunt the player ----
 const enemies = [];
 function spawnEnemy() {
@@ -131,6 +143,9 @@ function spawnEnemy() {
     biteAnim: 0, biteCooldown: 0,
     hp: 40, maxHp: 40,
     path: [], pathIndex: 1, pathTimer: 0,
+    lastSeen: null,    // last spot it saw the player
+    seenTimer: 0,      // counts down after losing sight
+    sightRange: 300,
   });
 }
 
@@ -139,10 +154,24 @@ function cellCenter(c) {
 }
 
 function updateEnemy(e) {
-  // re-plan a route to the player every so often (rocks change, player moves)
+  // Detection: it only knows where you are if you're in range AND it can see
+  // you (no rock blocking). If so, remember the spot for a few seconds.
+  const distP = Math.hypot(e.x - player.x, e.y - player.y);
+  if (distP < e.sightRange && hasLineOfSight(e.x, e.y, player.x, player.y)) {
+    e.lastSeen = { x: player.x, y: player.y };
+    e.seenTimer = 240;   // remember for ~4s after losing sight
+  } else if (e.seenTimer > 0) {
+    e.seenTimer--;
+  }
+
+  // Goal: chase your last-known spot if it remembers you, else march on the
+  // red nest (so it doesn't just teleport-know your live position).
+  const goal = (e.seenTimer > 0 && e.lastSeen) ? e.lastSeen : nests[0].queen;
+
+  // re-plan a route to the goal every so often
   if (--e.pathTimer <= 0) {
     e.pathTimer = 45;
-    e.path = findPath(cellIndex(e.x), cellIndex(e.y), cellIndex(player.x), cellIndex(player.y)) || [];
+    e.path = findPath(cellIndex(e.x), cellIndex(e.y), cellIndex(goal.x), cellIndex(goal.y)) || [];
     e.pathIndex = 1;   // [0] is the cell it's already in
   }
 
