@@ -5,6 +5,7 @@ const SPRINT_MULT = 1.7;         // speed multiplier while sprinting (Ctrl)
 const STAMINA_MAX = 100;
 const STAMINA_DRAIN = 0.9;       // stamina used per frame while sprinting
 const STAMINA_REGEN = 0.4;       // stamina recovered per frame while resting
+const EXHAUST_TIME = 300;        // frames (5s) you can't sprint after emptying stamina
 const FOOD_PER_BEETLE = 3;       // (unused now — beetles drop meat instead)
 const MEAT_VALUE = 6;            // food a delivered meat is worth
 const START_FOOD = 24;           // each colony's starting food

@@ -18,7 +18,7 @@ const player = {
   biteAnim: 0,        // counts down during a bite
   biteCooldown: 0,
   hp: 40, maxHp: 40,
-  stamina: STAMINA_MAX, maxStamina: STAMINA_MAX,
+  stamina: STAMINA_MAX, maxStamina: STAMINA_MAX, exhaust: 0,
   carrying: null,     // an egg or meat you're carrying (or null)
   isLarva: false, growth: 0,   // larva phase before you're a full ant
 };

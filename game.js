@@ -93,10 +93,16 @@ function update() {
 
   // larvae move slower and can't sprint; grown ants can
   const baseSpeed = player.isLarva ? LARVA_SPEED : player.speed;
-  const wantSprint = !player.isLarva && keys["shift"] && player.stamina > 0 &&
+  if (player.exhaust > 0) player.exhaust--;                 // can't run while recovering
+  const canSprint = !player.isLarva && player.exhaust <= 0 && player.stamina > 0;
+  const wantSprint = canSprint && keys["shift"] &&
     (keys["w"] || keys["s"] || keys["arrowup"] || keys["arrowdown"]);
-  if (wantSprint) player.stamina = Math.max(0, player.stamina - STAMINA_DRAIN);
-  else player.stamina = Math.min(player.maxStamina, player.stamina + STAMINA_REGEN);
+  if (wantSprint) {
+    player.stamina -= STAMINA_DRAIN;
+    if (player.stamina <= 0) { player.stamina = 0; player.exhaust = EXHAUST_TIME; }   // burned out
+  } else {
+    player.stamina = Math.min(player.maxStamina, player.stamina + STAMINA_REGEN);
+  }
   const pSpd = wantSprint ? baseSpeed * SPRINT_MULT : baseSpeed;
 
   // W drives toward the cursor; S backs away from it.
@@ -310,9 +316,10 @@ function draw() {
     const w = 200, h = 8;
     const x = canvas.width / 2 - w / 2, y = canvas.height - 26;
     ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = "#e8c84a"; ctx.fillRect(x, y, w * (player.stamina / player.maxStamina), h);
+    ctx.fillStyle = player.exhaust > 0 ? "#d05a3a" : "#e8c84a";   // red while exhausted
+    ctx.fillRect(x, y, w * (player.stamina / player.maxStamina), h);
     ctx.fillStyle = "#e8dcc0"; ctx.font = "10px monospace"; ctx.textAlign = "right";
-    ctx.fillText("STAMINA", x - 6, y + h);
+    ctx.fillText(player.exhaust > 0 ? "TIRED" : "STAMINA", x - 6, y + h);
   }
 
   // win / lose banner

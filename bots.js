@@ -11,8 +11,8 @@ function spawnBotAt(x, y, team) {
     walkPhase: 0, moving: false,
     biteAnim: 0, biteCooldown: 0,
     hp: 40, maxHp: 40, dead: false,
-    stamina: STAMINA_MAX,
-    role, carrying: null, roomTarget: null,
+    stamina: STAMINA_MAX, exhaust: 0,
+    role, roleTimer: 120 + Math.floor(Math.random() * 240), carrying: null, roomTarget: null,
     path: [], pathIndex: 1, pathTimer: Math.floor(Math.random() * 45),   // stagger repaths
     lastSeen: null, seenTimer: 0, sightRange: 300,
     searchTarget: null, searchTimer: 0,
@@ -132,6 +132,28 @@ function nearestLooseEgg(e) {
   return best;
 }
 
+// Is an enemy ant close to this team's queen?
+function enemyNearQueen(team) {
+  const n = nests.find(x => x.team === team);
+  for (const b of bots) if (!b.dead && b.team !== team && Math.hypot(b.x - n.x, b.y - n.y) < 260) return true;
+  if (player.team !== team && !player.hatching && Math.hypot(player.x - n.x, player.y - n.y) < 260) return true;
+  return false;
+}
+function looseEggCount(team) {
+  let c = 0;
+  for (const g of eggs) if (!g.dead && !g.carried && g.team === team && !isRoomCell(cellIndex(g.x), cellIndex(g.y))) c++;
+  return c;
+}
+
+// Any bot can switch roles based on what the colony needs right now.
+function chooseRole(e) {
+  const r = Math.random();
+  if (enemyNearQueen(e.team) && r < 0.55) return "defender";     // home is threatened
+  if (looseEggCount(e.team) > 0 && r < 0.45) return "nurse";      // eggs are exposed
+  if (ownNest(e).food < 14 && r < 0.55) return "hunter";          // running low on food
+  return r < 0.6 ? "attacker" : (r < 0.8 ? "defender" : "hunter");
+}
+
 // Where an idle bot heads, by role.
 function botIdleBehavior(e) {
   const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 90;
@@ -204,6 +226,13 @@ function botIdleBehavior(e) {
 }
 
 function updateBot(e) {
+  // Re-pick a role now and then (only when not busy carrying something).
+  if (!e.carrying && --e.roleTimer <= 0) {
+    e.role = chooseRole(e);
+    e.roleTimer = 240 + Math.floor(Math.random() * 240);
+    e.searchTarget = null;   // fresh goal for the new role
+  }
+
   // Detection: remember where it last saw an enemy.
   const target = pickTarget(e);
   if (target) {
@@ -218,10 +247,15 @@ function updateBot(e) {
   if (!chasing) botIdleBehavior(e);
   const goal = chasing ? e.lastSeen : e.searchTarget;
 
-  // sprint while chasing (drains stamina; recovers while not)
-  const sprinting = chasing && e.stamina > 0;
-  if (sprinting) e.stamina = Math.max(0, e.stamina - STAMINA_DRAIN);
-  else e.stamina = Math.min(STAMINA_MAX, e.stamina + STAMINA_REGEN);
+  // sprint while chasing; burning out locks running for 5s (like the player)
+  if (e.exhaust > 0) e.exhaust--;
+  const sprinting = chasing && e.exhaust <= 0 && e.stamina > 0;
+  if (sprinting) {
+    e.stamina -= STAMINA_DRAIN;
+    if (e.stamina <= 0) { e.stamina = 0; e.exhaust = EXHAUST_TIME; }
+  } else {
+    e.stamina = Math.min(STAMINA_MAX, e.stamina + STAMINA_REGEN);
+  }
   const spd = sprinting ? e.speed * SPRINT_MULT : e.speed;
 
   // re-plan often while chasing (beeline), less often otherwise
