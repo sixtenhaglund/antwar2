@@ -22,14 +22,9 @@ let gameState = "menu";
 
 function startGame() {
   player.team = "red";
-  player.color = FRIEND_COLOR;   // you're on the green side
+  player.color = TEAMS[player.team].color;   // real team color in-game
   player.x = nests[0].x;
   player.y = nests[0].y + 60;
-  // recolor nests by friend/foe (green = yours, red = enemy)
-  for (const n of nests) {
-    n.color = n.team === player.team ? FRIEND_COLOR : FOE_COLOR;
-    n.queen.color = n.color;
-  }
   bots.length = 0;
   for (let k = 0; k < 5; k++) spawnBot(nests[0], "red");    // your allies
   for (let k = 0; k < 5; k++) spawnBot(nests[1], "blue");   // enemies
@@ -141,19 +136,19 @@ function drawMinimap() {
   ctx.lineWidth = 2;
   ctx.strokeRect(mx, my, size, size);
 
-  // explored tunnels (faint)
-  ctx.fillStyle = "rgba(150,120,70,0.5)";
+  // explored terrain: floor (dug) vs wall (rock), different colors
   const cell = Math.max(1, ROCK_STEP * scale);
   for (const key of discovered) {
     const c = key.split(",");
     const cx = ROCK_STEP / 2 + (+c[0]) * ROCK_STEP;
     const cy = ROCK_STEP / 2 + (+c[1]) * ROCK_STEP;
+    ctx.fillStyle = rockGrid.has(key) ? "#7a5c33" : "#3a2a16";   // wall : floor
     ctx.fillRect(toX(cx) - cell / 2, toY(cy) - cell / 2, cell, cell);
   }
 
-  // nests
+  // nests (friend green / foe red on the minimap)
   for (const n of nests) {
-    ctx.fillStyle = n.color;
+    ctx.fillStyle = n.team === player.team ? FRIEND_COLOR : FOE_COLOR;
     ctx.beginPath();
     ctx.arc(toX(n.x), toY(n.y), 4, 0, Math.PI * 2);
     ctx.fill();
@@ -162,7 +157,7 @@ function drawMinimap() {
   // ants: your team always; enemies only if you can currently see them
   for (const b of bots) {
     if (b.team !== player.team && !lit.has(rockKey(cellIndex(b.x), cellIndex(b.y)))) continue;
-    ctx.fillStyle = b.color;
+    ctx.fillStyle = b.team === player.team ? FRIEND_COLOR : FOE_COLOR;
     ctx.beginPath();
     ctx.arc(toX(b.x), toY(b.y), 2, 0, Math.PI * 2);
     ctx.fill();

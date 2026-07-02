@@ -5,7 +5,7 @@ function spawnBot(nest, team) {
     x: nest.x + (Math.random() * 80 - 40),
     y: nest.y + 50 + Math.random() * 40,
     size: 14, radius: 6, speed: 2.6,
-    angle: 0, team, color: team === player.team ? FRIEND_COLOR : FOE_COLOR,
+    angle: 0, team, color: TEAMS[team].color,   // real team color in-game
     walkPhase: 0, moving: false,
     biteAnim: 0, biteCooldown: 0,
     hp: 40, maxHp: 40,
