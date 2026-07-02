@@ -172,10 +172,19 @@ function update() {
     const ai = cellIndex(player.x), aj = cellIndex(player.y);
     const dx = Math.round(Math.cos(player.angle));   // -1, 0, or 1
     const dy = Math.round(Math.sin(player.angle));
-    digAt(ai + dx, aj + dy, 4);          // the block straight ahead
-    if (dx !== 0 && dy !== 0) {          // digging diagonally: clear the two sides too
-      digAt(ai + dx, aj, 4);
-      digAt(ai, aj + dy, 4);
+    if (dx !== 0 && dy !== 0) {
+      // diagonal: dig the two side blocks first; only once both are gone
+      // do we start on the block in the corner ahead.
+      const sideA = rockGrid.get(rockKey(ai + dx, aj));
+      const sideB = rockGrid.get(rockKey(ai, aj + dy));
+      if (sideA || sideB) {
+        digAt(ai + dx, aj, 4);
+        digAt(ai, aj + dy, 4);
+      } else {
+        digAt(ai + dx, aj + dy, 4);
+      }
+    } else {
+      digAt(ai + dx, aj + dy, 4);        // straight ahead: just the one block
     }
   }
   if (player.biteAnim > 0) player.biteAnim--;
