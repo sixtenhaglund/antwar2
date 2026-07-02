@@ -440,24 +440,6 @@ function drawNests() {
 // ---- Fog of war: blocky per-tile vision (same grid as the rocks) ----
 const VISION = 360;
 
-// Line of sight from the player to grid cell (ti,tj) — the target cell itself
-// doesn't block (so a rock wall you're looking at still shows).
-function cellLOS(ti, tj) {
-  const cx = ROCK_STEP / 2 + ti * ROCK_STEP;
-  const cy = ROCK_STEP / 2 + tj * ROCK_STEP;
-  const dx = cx - player.x, dy = cy - player.y;
-  const dist = Math.hypot(dx, dy);
-  const steps = Math.ceil(dist / (ROCK_STEP * 0.5));
-  for (let s = 1; s < steps; s++) {
-    const t = s / steps;
-    const ci = cellIndex(player.x + dx * t);
-    const cj = cellIndex(player.y + dy * t);
-    if (ci === ti && cj === tj) continue;
-    if (rockGrid.has(rockKey(ci, cj))) return false;
-  }
-  return true;
-}
-
 function drawFog() {
   const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
   // cover a full tile past the screen so edge rocks get fogged too
@@ -469,7 +451,7 @@ function drawFog() {
     for (let j = j0; j <= j1; j++) {
       const cx = ROCK_STEP / 2 + i * ROCK_STEP;
       const cy = ROCK_STEP / 2 + j * ROCK_STEP;
-      const visible = Math.hypot(cx - player.x, cy - player.y) < VISION && cellLOS(i, j);
+      const visible = Math.hypot(cx - player.x, cy - player.y) < VISION;   // simple radius
       // draw 1px bigger so neighboring tiles overlap and leave no seams
       if (!visible) ctx.fillRect(cx - s / 2 - 0.5, cy - s / 2 - 0.5, s + 1, s + 1);
     }
