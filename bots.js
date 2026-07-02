@@ -27,7 +27,7 @@ function spawnBotAt(x, y, team) {
 
 // ---- Eggs: queens lay them; they hatch into ants after 5s ----
 const eggs = [];
-const POP_CAP = 25;         // max ants (+eggs) a queen keeps alive per team
+const POP_CAP = 50;         // max ants (+eggs) a queen keeps alive per team
 const EGG_TIME = 1200;      // 20 seconds at 60fps
 const LAY_INTERVAL = 45;    // how often a queen lays (~0.75s), so they ramp up
 
