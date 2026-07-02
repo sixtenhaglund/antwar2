@@ -67,12 +67,14 @@ function drawAnt(a) {
   let lunge = 0, bite = 0;
   if (a.biteAnim > 0) {
     const p = 1 - a.biteAnim / BITE_TIME;         // 0 → 1 over the whole bite
-    if (p < 0.35) {                                // wind-up: pull the head back
-      lunge = -1.2 * (p / 0.35);
+    if (p < 0.35) {                                // wind-up: pull the head back, jaws gape
+      const t = p / 0.35;
+      lunge = -1.2 * t;
+      bite = -0.6 * t;                             // 0 → -0.6 (open wider than rest)
     } else if (p < 0.6) {                          // charge: shoot forward + snap shut
       const t = (p - 0.35) / 0.25;
       lunge = -1.2 + t * 2.0;                      // -1.2 → +0.8 (stays attached)
-      bite = t;
+      bite = -0.6 + t * 1.6;                       // -0.6 → +1.0 (gape → snap shut)
     } else {                                       // recover: ease back, jaws reopen
       const t = (p - 0.6) / 0.4;
       lunge = 0.8 - t * 0.8;                       // +0.8 → 0
