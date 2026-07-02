@@ -437,6 +437,37 @@ function drawNests() {
   }
 }
 
+// ---- Fog of war: you only see where your vision reaches; rock blocks it ----
+const VISION = 360;
+function drawFog() {
+  // cast rays outward; each stops at the first rock (or max range)
+  const rays = 100;
+  const step = 9;
+  const poly = [];
+  for (let k = 0; k < rays; k++) {
+    const ang = (k / rays) * Math.PI * 2;
+    const dx = Math.cos(ang), dy = Math.sin(ang);
+    let dist = VISION;
+    for (let t = step; t <= VISION; t += step) {
+      const x = player.x + dx * t, y = player.y + dy * t;
+      if (rockGrid.has(rockKey(cellIndex(x), cellIndex(y)))) { dist = t; break; }
+    }
+    poly.push({ x: player.x + dx * dist, y: player.y + dy * dist });
+  }
+
+  // darken everything OUTSIDE the visible polygon (rect with a polygon hole)
+  const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
+  const L = player.x - halfW - 60, T = player.y - halfH - 60;
+  const R = player.x + halfW + 60, B = player.y + halfH + 60;
+  ctx.beginPath();
+  ctx.rect(L, T, R - L, B - T);
+  ctx.moveTo(poly[0].x, poly[0].y);
+  for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(8,5,2,0.92)";
+  ctx.fill("evenodd");
+}
+
 function draw() {
   ctx.fillStyle = "#1a1207";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -455,7 +486,10 @@ function draw() {
   drawNests();
   drawEnemies();
   drawAnt(player);
-  // white ring so you can spot yourself
+
+  drawFog();   // hide everything the player can't see (rock blocks vision)
+
+  // white ring so you can spot yourself (drawn on top of the fog)
   ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 2;
   ctx.beginPath();
