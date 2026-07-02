@@ -103,7 +103,7 @@ document.getElementById("howBtn").addEventListener("click", () => {
     panel.dataset.showing = "";
   } else {
     panel.innerHTML =
-      "Move with <b>WASD</b> · aim with the <b>mouse</b><br>" +
+      "Move with <b>WASD</b> — your ant faces the way it walks.<br>" +
       "Left-click to bite &amp; dig through the rock.";
     panel.dataset.showing = "how";
   }
@@ -113,19 +113,19 @@ document.getElementById("howBtn").addEventListener("click", () => {
 function update() {
   if (gameState !== "playing") return;
 
-  // aim at the mouse (camera is centered on the player, no zoom)
-  const cx = canvas.width / 2, cy = canvas.height / 2;
-  const wmx = mouse.x - cx + player.x;
-  const wmy = mouse.y - cy + player.y;
-  const adx = wmx - player.x, ady = wmy - player.y;
-  if (Math.hypot(adx, ady) > player.size * 0.3) player.angle = Math.atan2(ady, adx);
-
-  // move (fixed screen directions)
+  // build a movement direction from the keys
   const sx = player.x, sy = player.y;
-  if (keys["w"] || keys["arrowup"])    player.y -= player.speed;
-  if (keys["s"] || keys["arrowdown"])  player.y += player.speed;
-  if (keys["a"] || keys["arrowleft"])  player.x -= player.speed;
-  if (keys["d"] || keys["arrowright"]) player.x += player.speed;
+  let mvx = 0, mvy = 0;
+  if (keys["w"] || keys["arrowup"])    mvy -= 1;
+  if (keys["s"] || keys["arrowdown"])  mvy += 1;
+  if (keys["a"] || keys["arrowleft"])  mvx -= 1;
+  if (keys["d"] || keys["arrowright"]) mvx += 1;
+  if (mvx !== 0 || mvy !== 0) {
+    const len = Math.hypot(mvx, mvy);          // normalize so diagonals aren't faster
+    player.x += (mvx / len) * player.speed;
+    player.y += (mvy / len) * player.speed;
+    player.angle = Math.atan2(mvy, mvx);       // face the way we walk
+  }
 
   // collide with queens and rocks, then stay in the world
   for (const n of nests) keepApart(player, n.queen);
