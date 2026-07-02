@@ -1,18 +1,70 @@
 // ---- AI ants: each belongs to a team and hunts the other team ----
 const bots = [];
-function spawnBot(nest, team) {
+function spawnBotAt(x, y, team) {
   bots.push({
-    x: nest.x + (Math.random() * 80 - 40),
-    y: nest.y + 50 + Math.random() * 40,
+    x, y,
     size: 14, radius: 6, speed: 2.6,
     angle: 0, team, color: TEAMS[team].color,   // real team color in-game
     walkPhase: 0, moving: false,
     biteAnim: 0, biteCooldown: 0,
-    hp: 40, maxHp: 40,
+    hp: 40, maxHp: 40, dead: false,
     path: [], pathIndex: 1, pathTimer: Math.floor(Math.random() * 45),   // stagger repaths
     lastSeen: null, seenTimer: 0, sightRange: 300,
     searchTarget: null, searchTimer: 0,
   });
+}
+
+// ---- Eggs: queens lay them; they hatch into ants after 5s ----
+const eggs = [];
+const POP_CAP = 5;          // ants (+eggs) a queen keeps alive per team
+const EGG_TIME = 300;       // 5 seconds at 60fps
+const LAY_INTERVAL = 60;    // how often a queen checks to lay (1s)
+
+function teamCount(team) {
+  let c = 0;
+  for (const b of bots) if (!b.dead && b.team === team) c++;
+  for (const g of eggs) if (g.team === team) c++;
+  return c;
+}
+
+function layEgg(nest) {
+  eggs.push({
+    x: nest.x + (Math.random() * 80 - 40),
+    y: nest.y + 55 + Math.random() * 35,
+    team: nest.team,
+    timer: EGG_TIME,
+  });
+}
+
+function updateEggs() {
+  // queens lay to keep their team up to the cap
+  for (const n of nests) {
+    n.layTimer = (n.layTimer || 0) - 1;
+    if (n.layTimer <= 0) {
+      n.layTimer = LAY_INTERVAL;
+      if (teamCount(n.team) < POP_CAP) layEgg(n);
+    }
+  }
+  // hatch eggs whose timer ran out
+  for (let i = eggs.length - 1; i >= 0; i--) {
+    if (--eggs[i].timer <= 0) {
+      spawnBotAt(eggs[i].x, eggs[i].y, eggs[i].team);
+      eggs.splice(i, 1);
+    }
+  }
+}
+
+function drawEggs() {
+  for (const g of eggs) {
+    if (!lit.has(rockKey(cellIndex(g.x), cellIndex(g.y)))) continue;   // fog
+    ctx.fillStyle = "#f0e6c8";   // pale egg
+    ctx.beginPath();
+    ctx.ellipse(g.x, g.y, 4.5, 6.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 }
 
 function cellCenter(c) {
@@ -24,7 +76,7 @@ function cellCenter(c) {
 function pickTarget(e) {
   let best = null, bestScore = Infinity;
   for (const t of [player, ...bots]) {
-    if (t === e || t.team === e.team) continue;   // skip self and allies
+    if (t === e || t.team === e.team || t.dead) continue;   // skip self, allies, dead
     const d = Math.hypot(e.x - t.x, e.y - t.y);
     if (d < e.sightRange && hasLineOfSight(e.x, e.y, t.x, t.y)) {
       const score = t.hp + d * 0.3;               // low HP + close = best
@@ -65,7 +117,22 @@ function updateBot(e) {
   }
 
   e.moving = false;
-  if (e.path && e.pathIndex < e.path.length) {
+  if (target) {
+    // charge straight at the visible enemy (line of sight is already clear),
+    // so it keeps pressing in instead of stopping when the path cell ends.
+    const dx = target.x - e.x, dy = target.y - e.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 1) {
+      const ta = Math.atan2(dy, dx);
+      let diff = ta - e.angle;
+      while (diff >  Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      e.angle += diff * 0.25;
+      e.x += (dx / d) * e.speed;
+      e.y += (dy / d) * e.speed;
+      e.moving = true;
+    }
+  } else if (e.path && e.pathIndex < e.path.length) {
     const cell = e.path[e.pathIndex];
     const c = cellCenter(cell);
     if (rockGrid.has(rockKey(cell.i, cell.j))) {   // dig the next cell if it's rock
@@ -113,6 +180,7 @@ function updateBot(e) {
 
 function drawBots() {
   for (const e of bots) {
+    if (e.dead) continue;
     if (!lit.has(rockKey(cellIndex(e.x), cellIndex(e.y)))) continue;   // outside your vision
     drawAnt(e);
     const w = e.size * 2.4;

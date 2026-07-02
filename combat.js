@@ -1,6 +1,6 @@
 // ---- Combat: attacking, dying/respawning, healing at your queen ----
 
-function allAnts() { return [player, ...bots]; }
+function allAnts() { return [player, ...bots.filter(b => !b.dead)]; }
 
 function ownNest(a) { return nests.find(n => n.team === a.team); }
 
@@ -18,8 +18,12 @@ function respawn(a) {
 }
 
 function hurt(t, dmg) {
+  if (t.dead) return;
   t.hp -= dmg;
-  if (t.hp <= 0) respawn(t);
+  if (t.hp <= 0) {
+    if (t === player) respawn(player);   // you pop back at your queen
+    else t.dead = true;                  // a bot dies; its queen lays a fresh egg
+  }
 }
 
 // Melee: damage enemy ants right in front of `a`'s mouth.

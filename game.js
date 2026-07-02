@@ -25,9 +25,13 @@ function startGame() {
   player.color = TEAMS[player.team].color;   // real team color in-game
   player.x = nests[0].x;
   player.y = nests[0].y + 60;
+  // start with eggs — queens hatch the ants after 5s
   bots.length = 0;
-  for (let k = 0; k < 5; k++) spawnBot(nests[0], "red");    // your allies
-  for (let k = 0; k < 5; k++) spawnBot(nests[1], "blue");   // enemies
+  eggs.length = 0;
+  for (const n of nests) {
+    n.layTimer = LAY_INTERVAL;
+    for (let k = 0; k < POP_CAP; k++) layEgg(n);
+  }
   discovered.clear();
   document.getElementById("menu").style.display = "none";
   document.getElementById("hud").style.display = "block";
@@ -119,6 +123,11 @@ function update() {
   if (player.biteCooldown > 0) player.biteCooldown--;
   healNearQueen(player);                 // heal when back at your nest
 
+  // eggs: queens lay & hatch reinforcements
+  updateEggs();
+  // clear out dead bots
+  for (let i = bots.length - 1; i >= 0; i--) if (bots[i].dead) bots.splice(i, 1);
+
   // AI ants (both teams)
   for (const b of bots) updateBot(b);
 
@@ -191,6 +200,7 @@ function draw() {
   drawGround();
   drawRocks();
   drawNests();
+  drawEggs();
   drawBots();
   drawAnt(player);
 
