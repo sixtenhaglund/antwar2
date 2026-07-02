@@ -20,31 +20,44 @@ for (const n of nests) {
   n.queen = { x: n.x, y: n.y, size: 26, radius: 22, color: n.color };
 }
 
-// ---- Breakable rocks fill the map (dig through them) ----
+// ---- Breakable rocks fill the map on a grid (dig through them) ----
+const ROCK_STEP = 52;   // grid cell size
+const ROCK_SIZE = 26;   // rock half-size (so tiles touch edge to edge)
 const rocks = [];
+const rockGrid = new Map();   // "i,j" -> rock, for fast lookup while digging
+function rockKey(i, j) { return i + "," + j; }
+
 function placeRocks() {
   rocks.length = 0;
-  const s = 26, step = 52;
-  for (let x = step / 2; x < WORLD; x += step) {
-    for (let y = step / 2; y < WORLD; y += step) {
+  rockGrid.clear();
+  for (let i = 0; ROCK_STEP / 2 + i * ROCK_STEP < WORLD; i++) {
+    for (let j = 0; ROCK_STEP / 2 + j * ROCK_STEP < WORLD; j++) {
+      const x = ROCK_STEP / 2 + i * ROCK_STEP;
+      const y = ROCK_STEP / 2 + j * ROCK_STEP;
       let clear = false;
       for (const n of nests) {
         if (Math.hypot(x - n.x, y - n.y) < 200) clear = true;   // clear plaza around nests
       }
       if (clear) continue;
-      rocks.push({ x, y, size: s, hp: 8, maxHp: 8, broken: false });
+      const r = { x, y, i, j, size: ROCK_SIZE, hp: 8, maxHp: 8, broken: false };
+      rocks.push(r);
+      rockGrid.set(rockKey(i, j), r);
     }
   }
 }
 placeRocks();
 
-// Damage rocks near a point; smash them at 0 HP.
-function hitRocks(hx, hy, reach, amount) {
-  for (const r of rocks) {
-    if (r.broken) continue;
-    if (Math.hypot(hx - r.x, hy - r.y) < reach + r.size) {
-      r.hp -= amount;
-      if (r.hp <= 0) r.broken = true;
+// Which grid cell is a world position in?
+function cellIndex(v) { return Math.round((v - ROCK_STEP / 2) / ROCK_STEP); }
+
+// Damage the rock in grid cell (i,j); smash it at 0 HP.
+function digAt(i, j, amount) {
+  const r = rockGrid.get(rockKey(i, j));
+  if (r && !r.broken) {
+    r.hp -= amount;
+    if (r.hp <= 0) {
+      r.broken = true;
+      rockGrid.delete(rockKey(i, j));
     }
   }
 }
@@ -155,9 +168,15 @@ function update() {
     player.biteCooldown = BITE_TIME + 6;
   }
   if (player.biteAnim === 10) {   // the bite lands mid-animation
-    const mx = player.x + Math.cos(player.angle) * player.size * 1.2;
-    const my = player.y + Math.sin(player.angle) * player.size * 1.2;
-    hitRocks(mx, my, player.size * 0.9, 4);
+    // which cell am I in, and which way am I facing? (rounds to one of 8 dirs)
+    const ai = cellIndex(player.x), aj = cellIndex(player.y);
+    const dx = Math.round(Math.cos(player.angle));   // -1, 0, or 1
+    const dy = Math.round(Math.sin(player.angle));
+    digAt(ai + dx, aj + dy, 4);          // the block straight ahead
+    if (dx !== 0 && dy !== 0) {          // digging diagonally: clear the two sides too
+      digAt(ai + dx, aj, 4);
+      digAt(ai, aj + dy, 4);
+    }
   }
   if (player.biteAnim > 0) player.biteAnim--;
   if (player.biteCooldown > 0) player.biteCooldown--;
