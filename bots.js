@@ -161,13 +161,17 @@ function looseEggCount(team) {
   for (const g of eggs) if (!g.dead && !g.carried && g.team === team && !isRoomCell(cellIndex(g.x), cellIndex(g.y))) c++;
   return c;
 }
+function hasHungryLarva(team) {
+  for (const L of larvae) if (!L.dead && L.team === team && L.growth < GROW_MAX) return true;
+  return false;
+}
 
 // Any bot can switch roles based on what the colony needs right now.
 function chooseRole(e) {
   const r = Math.random();
   if (enemyNearQueen(e.team) && r < 0.55) return "defender";     // home is threatened
   if (looseEggCount(e.team) > 0 && r < 0.45) return "nurse";      // eggs are exposed
-  if (ownNest(e).food < 14 && r < 0.55) return "hunter";          // running low on food
+  if (hasHungryLarva(e.team) && r < 0.5) return "hunter";         // larvae need feeding
   return r < 0.6 ? "attacker" : (r < 0.8 ? "defender" : "hunter");
 }
 
@@ -175,14 +179,18 @@ function chooseRole(e) {
 function botIdleBehavior(e) {
   const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 90;
 
-  // ANY ant will haul carried meat home, or grab meat it passes near.
+  // ANY ant will grab meat it passes, and carry it to a larva to FEED it.
   if (e.carrying && e.carrying.kind === "meat") {
-    const h = ownNest(e).queen;
-    e.searchTarget = { x: h.x, y: h.y };
-    if (Math.hypot(e.x - h.x, e.y - h.y) < 120) {
-      ownNest(e).food += MEAT_VALUE;
-      removeMeat(e.carrying);
-      e.carrying = null;
+    const larva = nearestOwnLarva(e);
+    if (larva) {
+      e.searchTarget = { x: larva.x, y: larva.y };
+      if (Math.hypot(e.x - larva.x, e.y - larva.y) < 26) {
+        larva.growth = Math.min(GROW_MAX, larva.growth + 40);
+        removeMeat(e.carrying);
+        e.carrying = null;
+      }
+    } else {
+      dropCarried(e);   // nowhere to take it
     }
     return;
   }

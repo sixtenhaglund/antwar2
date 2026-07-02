@@ -40,10 +40,10 @@ function startGame() {
     n.queen.hp = n.queen.maxHp;
     n.queen.dead = false;
     n.layTimer = LAY_INTERVAL;
-    n.food = START_FOOD;   // seed food so the first larvae can grow
+    n.food = 0;
   }
-  // each colony starts with one AI larva (the first ant to grow), fed by the queen
-  for (const n of nests) spawnLarva(n.x + 40, n.y + 40, n.team, false);
+  // each colony starts with one AI ant at its queen (the first ant)
+  for (const n of nests) spawnBotAt(n.x + 40, n.y + 40, n.team);
   // lay your egg at the nest; the rest the queens produce over time
   eggs.push({ x: player.x, y: player.y, team: "red", timer: 180, isPlayer: true, dead: false, carried: false, kind: "egg" });
   // beetles in the random caves
@@ -199,13 +199,6 @@ function update() {
   if (player.carrying) {
     player.carrying.x = player.x + Math.cos(player.angle) * player.size * 1.1;
     player.carrying.y = player.y + Math.sin(player.angle) * player.size * 1.1;
-  }
-  // deliver carried meat to your nest → food
-  if (player.carrying && player.carrying.kind === "meat" &&
-      Math.hypot(player.x - nests[0].x, player.y - nests[0].y) < 130) {
-    nests[0].food += MEAT_VALUE;
-    removeMeat(player.carrying);
-    player.carrying = null;
   }
   }   // end player control
   fPrev = keys["f"];

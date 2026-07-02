@@ -249,17 +249,5 @@ function drawNests() {
     ctx.font = "16px monospace";
     ctx.textAlign = "center";
     ctx.fillText(n.team.toUpperCase() + (n.team === player.team ? " (you)" : ""), n.x, n.y - 58);
-
-    // food pile: a dark brown circle that grows with the food amount
-    if (n.food > 0) {
-      const rad = 5 + Math.min(28, n.food) * 0.9;
-      ctx.fillStyle = "#2e1c0c";
-      ctx.beginPath();
-      ctx.arc(n.x + 80, n.y + 44, rad, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.fillStyle = "#9a7a4c";
-    ctx.font = "12px monospace";
-    ctx.fillText("food " + Math.floor(n.food), n.x + 80, n.y + 90);
   }
 }
