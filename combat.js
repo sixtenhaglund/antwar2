@@ -12,6 +12,7 @@ function combatants() {
   for (const b of bots) if (!b.dead) list.push(b);
   for (const n of nests) if (!n.queen.dead) list.push(n.queen);
   for (const g of eggs) if (!g.dead && !g.isPlayer) list.push(g);   // eggs are destroyable
+  for (const L of larvae) if (!L.dead && !L.carried) list.push(L);  // larvae too (2 hits)
   return list;
 }
 

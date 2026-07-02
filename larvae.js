@@ -11,25 +11,24 @@ function spawnLarva(x, y, team, isPlayer) {
     player.hp = player.maxHp;
     return;
   }
-  larvae.push({ x, y, team, growth: 0, dead: false, carried: false, kind: "larva", wiggle: Math.random() * Math.PI * 2 });
+  larvae.push({ x, y, team, growth: 0, hp: 10, maxHp: 10, dead: false, carried: false, kind: "larva", wiggle: Math.random() * Math.PI * 2 });
 }
 
 function updateLarvae() {
-  // everyone grows slowly on their own (the player only grows this way, so the
-  // first grown ant is always an AI, not you)
-  for (const L of larvae) if (!L.dead && !L.carried) L.growth += PASSIVE_GROW;
+  // the player grows slowly on its own, so an AI always matures first
   if (player.isLarva) player.growth += PASSIVE_GROW;
 
-  // each queen feeds its least-grown AI larva extra from the food pile
+  // each queen feeds ONE larva at a time — the one closest to hatching — pushing
+  // it to a full ant before it starts on the next.
   for (const n of nests) {
     if (n.food <= 0) continue;
-    let low = null;
+    let target = null;
     for (const L of larvae) {
       if (L.dead || L.carried || L.team !== n.team) continue;
-      if (!low || L.growth < low.growth) low = L;
+      if (!target || L.growth > target.growth) target = L;   // most-grown
     }
-    if (!low) continue;
-    low.growth += GROW_RATE;
+    if (!target) continue;
+    target.growth += GROW_RATE;
     n.food = Math.max(0, n.food - FEED_COST);
   }
 
@@ -70,5 +69,10 @@ function drawLarvae() {
   for (const L of larvae) {
     if (!lit.has(rockKey(cellIndex(L.x), cellIndex(L.y)))) continue;
     drawLarvaShape(L.x, L.y, L.wiggle, L.growth / GROW_MAX);
+    if (L.hp < L.maxHp) {   // damage bar
+      const w = 20, bx = L.x - w / 2, by = L.y - 20;
+      ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(bx, by, w, 3);
+      ctx.fillStyle = "#e05a3a"; ctx.fillRect(bx, by, w * (L.hp / L.maxHp), 3);
+    }
   }
 }
