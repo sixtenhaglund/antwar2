@@ -71,11 +71,11 @@ function drawAnt(a) {
       lunge = -1.2 * (p / 0.35);
     } else if (p < 0.6) {                          // charge: shoot forward + snap shut
       const t = (p - 0.35) / 0.25;
-      lunge = -1.2 + t * 2.6;                      // -1.2 → +1.4
+      lunge = -1.2 + t * 2.0;                      // -1.2 → +0.8 (stays attached)
       bite = t;
     } else {                                       // recover: ease back, jaws reopen
       const t = (p - 0.6) / 0.4;
-      lunge = 1.4 - t * 1.4;                       // +1.4 → 0
+      lunge = 0.8 - t * 0.8;                       // +0.8 → 0
       bite = 1 - t;
     }
   }
