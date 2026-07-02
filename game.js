@@ -509,7 +509,7 @@ function drawFog() {
 // ---- Minimap (screen-space overview in the corner) ----
 function drawMinimap() {
   const size = 180, margin = 12;
-  const mx = canvas.width - size - margin, my = margin;
+  const mx = margin, my = canvas.height - size - margin;   // bottom-left
   const scale = size / WORLD;
   const toX = (x) => mx + x * scale;
   const toY = (y) => my + y * scale;
