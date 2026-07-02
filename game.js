@@ -174,20 +174,21 @@ function updateEnemy(e) {
     e.seenTimer--;
   }
 
-  // Goal: chase your last-known spot if it remembers you; otherwise SEARCH —
-  // roam to random spots, picking a new one when it arrives or times out.
-  if (!(e.seenTimer > 0 && e.lastSeen)) {
+  // Attacking is top priority: if it remembers seeing you, chase that spot.
+  // Otherwise SEARCH — roam to random spots until it finds you.
+  const chasing = e.seenTimer > 0 && e.lastSeen;
+  if (!chasing) {
     const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 70;
     if (!e.searchTarget || reached || --e.searchTimer <= 0) {
       e.searchTarget = { x: 120 + Math.random() * (WORLD - 240), y: 120 + Math.random() * (WORLD - 240) };
       e.searchTimer = 420;   // give up on a spot after ~7s
     }
   }
-  const goal = (e.seenTimer > 0 && e.lastSeen) ? e.lastSeen : e.searchTarget;
+  const goal = chasing ? e.lastSeen : e.searchTarget;
 
-  // re-plan a route to the goal every so often
+  // re-plan often while chasing (beeline to you), less often while searching
   if (--e.pathTimer <= 0) {
-    e.pathTimer = 45;
+    e.pathTimer = chasing ? 8 : 45;
     e.path = findPath(cellIndex(e.x), cellIndex(e.y), cellIndex(goal.x), cellIndex(goal.y)) || [];
     e.pathIndex = 1;   // [0] is the cell it's already in
   }
@@ -250,6 +251,7 @@ function updateEnemy(e) {
 
 function drawEnemies() {
   for (const e of enemies) {
+    if (!lit.has(rockKey(cellIndex(e.x), cellIndex(e.y)))) continue;   // can't see it
     drawAnt(e);
     // hp bar
     const w = e.size * 2.4;
@@ -459,33 +461,49 @@ function drawNests() {
 const VISION = 360;
 
 const NEIGHBORS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-
-// Is grid cell (i,j) rock that borders an open (dug) cell? (a wall you can see)
-function isWall(i, j) {
-  for (const [di, dj] of NEIGHBORS) {
-    if (!rockGrid.has(rockKey(i + di, j + dj))) return true;
-  }
-  return false;
-}
-
+const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const discovered = new Set();   // cells the player has ever seen
+let lit = new Set();            // cells lit right now (recomputed each frame)
+
+// Flood-fill light from the player through OPEN space (rock blocks it), out to
+// the vision range. So you only see tunnels connected to where you are — an
+// enemy tunnel behind a wall stays dark until you mine into it. Walls bordering
+// the lit space are lit too (so you see what you can dig).
+function computeLit() {
+  lit = new Set();
+  const si = cellIndex(player.x), sj = cellIndex(player.y);
+  const queue = [[si, sj]];
+  const seen = new Set([rockKey(si, sj)]);
+  let head = 0;
+  while (head < queue.length) {
+    const [i, j] = queue[head++];
+    const cx = ROCK_STEP / 2 + i * ROCK_STEP, cy = ROCK_STEP / 2 + j * ROCK_STEP;
+    if (Math.hypot(cx - player.x, cy - player.y) > VISION) continue;
+    lit.add(rockKey(i, j));                       // this open cell is lit
+    for (const [di, dj] of NEIGHBORS) {           // light the walls around it
+      const nk = rockKey(i + di, j + dj);
+      if (rockGrid.has(nk)) lit.add(nk);
+    }
+    for (const [di, dj] of ORTHO) {               // spread through open neighbours
+      const ni = i + di, nj = j + dj, nk = rockKey(ni, nj);
+      if (rockGrid.has(nk) || seen.has(nk)) continue;
+      seen.add(nk);
+      queue.push([ni, nj]);
+    }
+  }
+}
 
 function drawFog() {
   const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
-  // cover a full tile past the screen so edge rocks get fogged too
   const i0 = cellIndex(player.x - halfW - ROCK_STEP), i1 = cellIndex(player.x + halfW + ROCK_STEP);
   const j0 = cellIndex(player.y - halfH - ROCK_STEP), j1 = cellIndex(player.y + halfH + ROCK_STEP);
   const s = ROCK_STEP;
   for (let i = i0; i <= i1; i++) {
     for (let j = j0; j <= j1; j++) {
+      const key = rockKey(i, j);
+      if (lit.has(key)) { discovered.add(key); continue; }   // lit now → no fog
       const cx = ROCK_STEP / 2 + i * ROCK_STEP;
       const cy = ROCK_STEP / 2 + j * ROCK_STEP;
-      const key = rockKey(i, j);
-      let visible = Math.hypot(cx - player.x, cy - player.y) < VISION;   // within light radius
-      // solid rock only shows if it's a wall (touches an open cell)
-      if (visible && rockGrid.has(key) && !isWall(i, j)) visible = false;
-
-      if (visible) { discovered.add(key); continue; }   // lit now → no fog
       // dim if we've been here before, pitch black if never seen
       ctx.fillStyle = discovered.has(key) ? "rgba(0,0,0,0.62)" : "#000000";
       ctx.fillRect(cx - s / 2 - 0.5, cy - s / 2 - 0.5, s + 1, s + 1);
@@ -497,6 +515,8 @@ function draw() {
   ctx.fillStyle = "#1a1207";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (gameState !== "playing") return;
+
+  computeLit();   // what the player can currently see
 
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
