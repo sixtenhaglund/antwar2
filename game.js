@@ -404,9 +404,9 @@ function drawRocks() {
     if (r.broken) continue;
     if (r.x < left || r.x > right || r.y < top || r.y > bottom) continue;
     const s = r.size;
-    ctx.fillStyle = "#6b6b70";
+    ctx.fillStyle = "#4a3823";        // dark dirt
     ctx.fillRect(r.x - s, r.y - s, s * 2, s * 2);
-    ctx.strokeStyle = "#3f3f45";
+    ctx.strokeStyle = "#2c2013";
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x - s, r.y - s, s * 2, s * 2);
     if (r.hp < r.maxHp) {   // damage bar once hit
