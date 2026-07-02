@@ -158,6 +158,26 @@ function chooseRole(e) {
 function botIdleBehavior(e) {
   const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 90;
 
+  // ANY ant will haul carried meat home, or grab meat it passes near.
+  if (e.carrying && e.carrying.kind === "meat") {
+    const h = ownNest(e).queen;
+    e.searchTarget = { x: h.x, y: h.y };
+    if (Math.hypot(e.x - h.x, e.y - h.y) < 120) {
+      ownNest(e).food += MEAT_VALUE;
+      removeMeat(e.carrying);
+      e.carrying = null;
+    }
+    return;
+  }
+  if (!e.carrying) {
+    const m = nearestMeat(e);
+    if (m && Math.hypot(e.x - m.x, e.y - m.y) < 130) {
+      e.searchTarget = { x: m.x, y: m.y };
+      if (Math.hypot(e.x - m.x, e.y - m.y) < 22) pickUp(e, m);
+      return;
+    }
+  }
+
   if (e.role === "nurse") {
     if (e.carrying) {
       // carry the egg to a safe room, then set it down there
