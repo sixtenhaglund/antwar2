@@ -1,4 +1,6 @@
 const BITE_TIME = 20;   // how long one bite animation lasts
+const FRIEND_COLOR = "#4fd04f";   // your side (green)
+const FOE_COLOR = "#d0453f";      // enemies (red)
 
 // ---- Canvas ----
 const canvas = document.getElementById("game");
@@ -146,7 +148,7 @@ function spawnBot(nest, team) {
     x: nest.x + (Math.random() * 80 - 40),
     y: nest.y + 50 + Math.random() * 40,
     size: 14, radius: 6, speed: 2.6,
-    angle: 0, team, color: TEAMS[team].color,
+    angle: 0, team, color: team === player.team ? FRIEND_COLOR : FOE_COLOR,
     walkPhase: 0, moving: false,
     biteAnim: 0, biteCooldown: 0,
     hp: 40, maxHp: 40,
@@ -294,9 +296,14 @@ let gameState = "menu";
 
 function startGame() {
   player.team = "red";
-  player.color = nests[0].color;
+  player.color = FRIEND_COLOR;   // you're on the green side
   player.x = nests[0].x;
   player.y = nests[0].y + 60;
+  // recolor nests by friend/foe (green = yours, red = enemy)
+  for (const n of nests) {
+    n.color = n.team === player.team ? FRIEND_COLOR : FOE_COLOR;
+    n.queen.color = n.color;
+  }
   bots.length = 0;
   for (let k = 0; k < 5; k++) spawnBot(nests[0], "red");    // your allies
   for (let k = 0; k < 5; k++) spawnBot(nests[1], "blue");   // enemies
@@ -399,7 +406,7 @@ function drawGround() {
   const left = player.x - halfW - 30, right = player.x + halfW + 30;
   const top = player.y - halfH - 30, bottom = player.y + halfH + 30;
   const spacing = 60;
-  ctx.fillStyle = "#2a2011";
+  ctx.fillStyle = "#3a2a16";
   const startX = Math.floor(left / spacing) * spacing;
   const startY = Math.floor(top / spacing) * spacing;
   for (let x = startX; x < right; x += spacing) {
@@ -419,9 +426,9 @@ function drawRocks() {
     if (r.broken) continue;
     if (r.x < left || r.x > right || r.y < top || r.y > bottom) continue;
     const s = r.size;
-    ctx.fillStyle = r.border ? "#5b5148" : "#4a3823";   // stone wall vs dirt
+    ctx.fillStyle = r.border ? "#6f665c" : "#7a5c33";   // stone wall vs dirt wall
     ctx.fillRect(r.x - s, r.y - s, s * 2, s * 2);
-    ctx.strokeStyle = r.border ? "#332c26" : "#2c2013";
+    ctx.strokeStyle = r.border ? "#413a32" : "#553f22";
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x - s, r.y - s, s * 2, s * 2);
     if (r.hp < r.maxHp) {   // dig-progress bar
@@ -562,7 +569,7 @@ function drawMinimap() {
 }
 
 function draw() {
-  ctx.fillStyle = "#1a1207";
+  ctx.fillStyle = "#2a1d10";   // tunnel floor (ground)
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (gameState !== "playing") return;
 
