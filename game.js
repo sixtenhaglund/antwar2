@@ -506,6 +506,55 @@ function drawFog() {
   }
 }
 
+// ---- Minimap (screen-space overview in the corner) ----
+function drawMinimap() {
+  const size = 180, margin = 12;
+  const mx = canvas.width - size - margin, my = margin;
+  const scale = size / WORLD;
+  const toX = (x) => mx + x * scale;
+  const toY = (y) => my + y * scale;
+
+  // panel
+  ctx.fillStyle = "rgba(10,7,3,0.8)";
+  ctx.fillRect(mx, my, size, size);
+  ctx.strokeStyle = "#5a3a1e";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(mx, my, size, size);
+
+  // explored tunnels (faint)
+  ctx.fillStyle = "rgba(150,120,70,0.5)";
+  const cell = Math.max(1, ROCK_STEP * scale);
+  for (const key of discovered) {
+    const c = key.split(",");
+    const cx = ROCK_STEP / 2 + (+c[0]) * ROCK_STEP;
+    const cy = ROCK_STEP / 2 + (+c[1]) * ROCK_STEP;
+    ctx.fillRect(toX(cx) - cell / 2, toY(cy) - cell / 2, cell, cell);
+  }
+
+  // nests
+  for (const n of nests) {
+    ctx.fillStyle = n.color;
+    ctx.beginPath();
+    ctx.arc(toX(n.x), toY(n.y), 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ants: your team always; enemies only if you can currently see them
+  for (const b of bots) {
+    if (b.team !== player.team && !lit.has(rockKey(cellIndex(b.x), cellIndex(b.y)))) continue;
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.arc(toX(b.x), toY(b.y), 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // you (white)
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(toX(player.x), toY(player.y), 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function draw() {
   ctx.fillStyle = "#1a1207";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -534,6 +583,8 @@ function draw() {
   ctx.stroke();
 
   ctx.restore();
+
+  drawMinimap();   // screen-fixed overview (after the camera reset)
 }
 
 // ---- Loop ----
