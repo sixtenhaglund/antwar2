@@ -10,6 +10,14 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
+// ---- Zoom with the scroll wheel ----
+let zoom = 1;
+window.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;   // up = in, down = out
+  zoom = Math.max(0.4, Math.min(3, zoom * factor));
+}, { passive: false });
+
 // ---- The map: a square world with a Red nest (yours) and a Blue nest ----
 const WORLD = 2000;
 const nests = [
@@ -193,8 +201,9 @@ function update() {
 
 // ---- Drawing ----
 function drawGround() {
-  const left = player.x - canvas.width / 2 - 30, right = player.x + canvas.width / 2 + 30;
-  const top = player.y - canvas.height / 2 - 30, bottom = player.y + canvas.height / 2 + 30;
+  const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
+  const left = player.x - halfW - 30, right = player.x + halfW + 30;
+  const top = player.y - halfH - 30, bottom = player.y + halfH + 30;
   const spacing = 60;
   ctx.fillStyle = "#2a2011";
   const startX = Math.floor(left / spacing) * spacing;
@@ -209,8 +218,9 @@ function drawGround() {
 }
 
 function drawRocks() {
-  const left = player.x - canvas.width / 2 - 30, right = player.x + canvas.width / 2 + 30;
-  const top = player.y - canvas.height / 2 - 30, bottom = player.y + canvas.height / 2 + 30;
+  const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
+  const left = player.x - halfW - 30, right = player.x + halfW + 30;
+  const top = player.y - halfH - 30, bottom = player.y + halfH + 30;
   for (const r of rocks) {
     if (r.broken) continue;
     if (r.x < left || r.x > right || r.y < top || r.y > bottom) continue;
@@ -255,6 +265,7 @@ function draw() {
 
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.scale(zoom, zoom);
   ctx.translate(-player.x, -player.y);
 
   drawGround();
