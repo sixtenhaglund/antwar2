@@ -324,15 +324,14 @@ function update() {
     player.angle += diff * 0.3;
   }
 
-  // W drives forward toward the cursor; S back; A/D strafe sideways.
-  const fx = Math.cos(player.angle), fy = Math.sin(player.angle);   // forward
-  const rx = -fy, ry = fx;                                          // right
+  // W drives toward the cursor; S away from it; A/D are fixed screen left/right.
+  const fx = Math.cos(player.angle), fy = Math.sin(player.angle);   // toward cursor
   const sx = player.x, sy = player.y;
   let mvx = 0, mvy = 0;
   if (keys["w"] || keys["arrowup"])    { mvx += fx; mvy += fy; }
   if (keys["s"] || keys["arrowdown"])  { mvx -= fx; mvy -= fy; }
-  if (keys["d"] || keys["arrowright"]) { mvx += rx; mvy += ry; }
-  if (keys["a"] || keys["arrowleft"])  { mvx -= rx; mvy -= ry; }
+  if (keys["a"] || keys["arrowleft"])  mvx -= 1;   // screen left
+  if (keys["d"] || keys["arrowright"]) mvx += 1;   // screen right
   if (mvx !== 0 || mvy !== 0) {
     const len = Math.hypot(mvx, mvy);          // normalize so diagonals aren't faster
     player.x += (mvx / len) * player.speed;
