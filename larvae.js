@@ -15,8 +15,8 @@ function spawnLarva(x, y, team, isPlayer) {
 }
 
 function updateLarvae() {
-  // the player grows slowly on its own, so an AI always matures first.
-  // (Larvae are grown by being FED meat / tended by nurses — not by a food pile.)
+  // every larva grows slowly on its own; feeding/tending just speeds it up.
+  for (const L of larvae) if (!L.dead && !L.carried) L.growth += PASSIVE_GROW;
   if (player.isLarva) player.growth += PASSIVE_GROW;
 
   // grown larvae become ants; you become a full ant when grown
