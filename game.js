@@ -310,24 +310,33 @@ document.getElementById("howBtn").addEventListener("click", () => {
 function update() {
   if (gameState !== "playing") return;
 
-  // build a movement direction from the keys
+  // aim at the cursor (convert mouse from screen to world, undoing the zoom)
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const wmx = (mouse.x - cx) / zoom + player.x;
+  const wmy = (mouse.y - cy) / zoom + player.y;
+  const aimX = wmx - player.x, aimY = wmy - player.y;
+  if (Math.hypot(aimX, aimY) > player.size * 0.3) {
+    // glide the facing toward the cursor
+    const target = Math.atan2(aimY, aimX);
+    let diff = target - player.angle;
+    while (diff >  Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    player.angle += diff * 0.3;
+  }
+
+  // W drives forward toward the cursor; S back; A/D strafe sideways.
+  const fx = Math.cos(player.angle), fy = Math.sin(player.angle);   // forward
+  const rx = -fy, ry = fx;                                          // right
   const sx = player.x, sy = player.y;
   let mvx = 0, mvy = 0;
-  if (keys["w"] || keys["arrowup"])    mvy -= 1;
-  if (keys["s"] || keys["arrowdown"])  mvy += 1;
-  if (keys["a"] || keys["arrowleft"])  mvx -= 1;
-  if (keys["d"] || keys["arrowright"]) mvx += 1;
+  if (keys["w"] || keys["arrowup"])    { mvx += fx; mvy += fy; }
+  if (keys["s"] || keys["arrowdown"])  { mvx -= fx; mvy -= fy; }
+  if (keys["d"] || keys["arrowright"]) { mvx += rx; mvy += ry; }
+  if (keys["a"] || keys["arrowleft"])  { mvx -= rx; mvy -= ry; }
   if (mvx !== 0 || mvy !== 0) {
     const len = Math.hypot(mvx, mvy);          // normalize so diagonals aren't faster
     player.x += (mvx / len) * player.speed;
     player.y += (mvy / len) * player.speed;
-
-    // glide toward the walk direction instead of snapping
-    const target = Math.atan2(mvy, mvx);
-    let diff = target - player.angle;
-    while (diff >  Math.PI) diff -= 2 * Math.PI;  // take the shorter way around
-    while (diff < -Math.PI) diff += 2 * Math.PI;
-    player.angle += diff * 0.2;                 // 0.2 = how fast it turns
   }
 
   // collide with queens and rocks, then stay in the world
