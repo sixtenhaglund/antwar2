@@ -34,6 +34,25 @@ function meleeHit(a, dmg) {
   }
 }
 
+// Push overlapping ants apart (both move, sharing the overlap).
+function resolveAntCollisions() {
+  const all = allAnts();
+  for (let i = 0; i < all.length; i++) {
+    for (let j = i + 1; j < all.length; j++) {
+      const a = all[i], b = all[j];
+      const minDist = a.size * 0.55 + b.size * 0.55;   // body-ish radius
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < minDist && dist > 0.001) {
+        const push = (minDist - dist) / 2;
+        const nx = dx / dist, ny = dy / dist;
+        a.x -= nx * push; a.y -= ny * push;
+        b.x += nx * push; b.y += ny * push;
+      }
+    }
+  }
+}
+
 // Slowly heal when near your own queen (makes retreating worthwhile).
 function healNearQueen(a) {
   const nest = ownNest(a);

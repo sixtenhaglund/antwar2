@@ -121,6 +121,9 @@ function update() {
 
   // AI ants (both teams)
   for (const b of bots) updateBot(b);
+
+  // ants push each other apart
+  resolveAntCollisions();
 }
 
 // ---- Minimap (screen-space overview in the corner) ----
