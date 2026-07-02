@@ -1,10 +1,14 @@
 // ---- Combat: attacking, dying/respawning, healing at your queen ----
 
-function allAnts() { return [player, ...bots.filter(b => !b.dead)]; }
+function allAnts() {
+  const list = player.hatching ? [] : [player];
+  for (const b of bots) if (!b.dead) list.push(b);
+  return list;
+}
 
 // everything that can be hit: ants + queens
 function combatants() {
-  const list = [player];
+  const list = player.hatching ? [] : [player];
   for (const b of bots) if (!b.dead) list.push(b);
   for (const n of nests) if (!n.queen.dead) list.push(n.queen);
   return list;

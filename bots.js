@@ -16,14 +16,15 @@ function spawnBotAt(x, y, team) {
 
 // ---- Eggs: queens lay them; they hatch into ants after 5s ----
 const eggs = [];
-const POP_CAP = 5;          // ants (+eggs) a queen keeps alive per team
+const POP_CAP = 25;         // max ants (+eggs) a queen keeps alive per team
 const EGG_TIME = 300;       // 5 seconds at 60fps
-const LAY_INTERVAL = 60;    // how often a queen checks to lay (1s)
+const LAY_INTERVAL = 45;    // how often a queen lays (~0.75s), so they ramp up
 
 function teamCount(team) {
   let c = 0;
+  if (player.team === team && !player.hatching) c++;   // the player counts too
   for (const b of bots) if (!b.dead && b.team === team) c++;
-  for (const g of eggs) if (g.team === team) c++;
+  for (const g of eggs) if (g.team === team) c++;       // includes the player egg
   return c;
 }
 
@@ -47,8 +48,15 @@ function updateEggs() {
   }
   // hatch eggs whose timer ran out
   for (let i = eggs.length - 1; i >= 0; i--) {
-    if (--eggs[i].timer <= 0) {
-      spawnBotAt(eggs[i].x, eggs[i].y, eggs[i].team);
+    const g = eggs[i];
+    if (--g.timer <= 0) {
+      if (g.isPlayer) {                  // the player's egg hatches into you
+        player.hatching = false;
+        player.x = g.x; player.y = g.y;
+        player.hp = player.maxHp;
+      } else {
+        spawnBotAt(g.x, g.y, g.team);
+      }
       eggs.splice(i, 1);
     }
   }
@@ -76,7 +84,7 @@ function cellCenter(c) {
 function pickTarget(e) {
   let best = null, bestScore = Infinity;
   for (const t of [player, ...bots]) {
-    if (t === e || t.team === e.team || t.dead) continue;   // skip self, allies, dead
+    if (t === e || t.team === e.team || t.dead || t.hatching) continue;   // skip self/allies/dead/egg
     const d = Math.hypot(e.x - t.x, e.y - t.y);
     if (d < e.sightRange && hasLineOfSight(e.x, e.y, t.x, t.y)) {
       const score = t.hp + d * 0.3;               // low HP + close = best

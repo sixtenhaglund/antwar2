@@ -24,17 +24,19 @@ function startGame() {
   player.team = "red";
   player.color = TEAMS[player.team].color;   // real team color in-game
   player.hp = player.maxHp;
+  player.hatching = true;                     // you hatch from an egg too
   player.x = nests[0].x;
   player.y = nests[0].y + 60;
-  // reset queens, then start each team with eggs (hatch after 5s)
+  // reset queens; they lay the ants over time (nobody pre-spawns)
   bots.length = 0;
   eggs.length = 0;
   for (const n of nests) {
     n.queen.hp = n.queen.maxHp;
     n.queen.dead = false;
     n.layTimer = LAY_INTERVAL;
-    for (let k = 0; k < POP_CAP; k++) layEgg(n);
   }
+  // lay your egg at the nest; the rest the queens produce over time
+  eggs.push({ x: player.x, y: player.y, team: "red", timer: EGG_TIME, isPlayer: true });
   discovered.clear();
   document.getElementById("menu").style.display = "none";
   document.getElementById("hud").style.display = "block";
@@ -60,6 +62,8 @@ document.getElementById("howBtn").addEventListener("click", () => {
 function update() {
   if (gameState !== "playing") return;
 
+  // ---- Player control (frozen while you're still an egg) ----
+  if (!player.hatching) {
   // aim at the cursor (convert mouse from screen to world, undoing the zoom)
   const cx = canvas.width / 2, cy = canvas.height / 2;
   const wmx = (mouse.x - cx) / zoom + player.x;
@@ -125,6 +129,7 @@ function update() {
   if (player.biteAnim > 0) player.biteAnim--;
   if (player.biteCooldown > 0) player.biteCooldown--;
   healNearQueen(player);                 // heal when back at your nest
+  }   // end player control
 
   // eggs: queens lay & hatch reinforcements
   updateEggs();
@@ -205,23 +210,25 @@ function draw() {
   drawNests();
   drawEggs();
   drawBots();
-  drawAnt(player);
+  if (!player.hatching) drawAnt(player);
 
   drawFog();   // hide everything the player can't see (rock blocks vision)
 
-  // white ring so you can spot yourself (drawn on top of the fog)
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.size + 5, 0, Math.PI * 2);
-  ctx.stroke();
+  if (!player.hatching) {
+    // white ring so you can spot yourself (drawn on top of the fog)
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.size + 5, 0, Math.PI * 2);
+    ctx.stroke();
 
-  // your hp bar
-  const w = player.size * 2.4, bx = player.x - w / 2, by = player.y - player.size - 16;
-  ctx.fillStyle = "rgba(0,0,0,0.5)";
-  ctx.fillRect(bx, by, w, 4);
-  ctx.fillStyle = "#5ad25a";
-  ctx.fillRect(bx, by, w * (player.hp / player.maxHp), 4);
+    // your hp bar
+    const w = player.size * 2.4, bx = player.x - w / 2, by = player.y - player.size - 16;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(bx, by, w, 4);
+    ctx.fillStyle = "#5ad25a";
+    ctx.fillRect(bx, by, w * (player.hp / player.maxHp), 4);
+  }
 
   ctx.restore();
 
