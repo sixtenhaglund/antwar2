@@ -1,0 +1,90 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: monospace;
+  color: #e8dcc0;
+  overflow: hidden;
+}
+
+/* ---- Main menu ---- */
+#menu {
+  position: fixed;
+  inset: 0;                 /* fill the whole screen */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  /* warm soil glow in the middle, fading to near-black at the edges */
+  background: radial-gradient(circle at center, #3a2712, #0a0703 75%);
+}
+
+/* the big ant above the title, gently bobbing */
+.ant {
+  font-size: 72px;
+  line-height: 1;
+  animation: bob 2s ease-in-out infinite;
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+
+#menu h1 {
+  margin: 0;
+  font-size: 64px;
+  letter-spacing: 14px;
+  color: #f0d9a8;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.7);
+}
+
+.tag {
+  margin: 0;
+  opacity: 0.75;
+  letter-spacing: 2px;
+  font-size: 15px;
+}
+
+.buttons {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+}
+.buttons button {
+  font-family: monospace;
+  font-size: 17px;
+  padding: 14px 30px;
+  cursor: pointer;
+  color: #e8dcc0;
+  background: linear-gradient(#41301a, #2a1e10);
+  border: 2px solid #5a3a1e;
+  border-radius: 12px;
+  transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s;
+}
+.buttons button:hover {
+  transform: translateY(-3px);
+  border-color: #d09a52;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+/* the Play button stands out */
+.buttons button.primary {
+  background: linear-gradient(#7a4a1e, #5a3312);
+  border-color: #d09a52;
+}
+
+/* the info panel under the buttons */
+#panel {
+  max-width: 420px;
+  min-height: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  opacity: 0.85;
+}
+
+.footer {
+  position: fixed;
+  bottom: 14px;
+  font-size: 11px;
+  opacity: 0.5;
+}
