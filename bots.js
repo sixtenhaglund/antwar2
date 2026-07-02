@@ -8,7 +8,7 @@ function spawnBot(nest, team) {
     angle: 0, team, color: TEAMS[team].color,   // real team color in-game
     walkPhase: 0, moving: false,
     biteAnim: 0, biteCooldown: 0,
-    hp: 40, maxHp: 40,
+    hp: 20, maxHp: 20, retreating: false,
     path: [], pathIndex: 1, pathTimer: Math.floor(Math.random() * 45),   // stagger repaths
     lastSeen: null, seenTimer: 0, sightRange: 300,
     searchTarget: null, searchTimer: 0,
@@ -40,20 +40,24 @@ function updateBot(e) {
     e.seenTimer--;
   }
 
-  // Attacking is top priority: chase the last-seen enemy; else search around.
-  const chasing = e.seenTimer > 0 && e.lastSeen;
-  if (!chasing) {
+  // Retreat when badly hurt; come back out once healed up (hysteresis).
+  if (e.hp < e.maxHp * 0.35) e.retreating = true;
+  else if (e.hp > e.maxHp * 0.75) e.retreating = false;
+
+  // Goal priority: flee home when retreating > chase an enemy > search.
+  const chasing = e.seenTimer > 0 && e.lastSeen && !e.retreating;
+  if (!chasing && !e.retreating) {
     const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 70;
     if (!e.searchTarget || reached || --e.searchTimer <= 0) {
       e.searchTarget = { x: 120 + Math.random() * (WORLD - 240), y: 120 + Math.random() * (WORLD - 240) };
       e.searchTimer = 420;
     }
   }
-  const goal = chasing ? e.lastSeen : e.searchTarget;
+  const goal = e.retreating ? ownNest(e).queen : (chasing ? e.lastSeen : e.searchTarget);
 
-  // re-plan often while chasing (beeline), less often while searching
+  // re-plan often while chasing (beeline), less often otherwise
   if (--e.pathTimer <= 0) {
-    e.pathTimer = chasing ? 8 : 45;
+    e.pathTimer = chasing ? 8 : (e.retreating ? 16 : 45);
     e.path = findPath(cellIndex(e.x), cellIndex(e.y), cellIndex(goal.x), cellIndex(goal.y)) || [];
     e.pathIndex = 1;
   }
@@ -82,8 +86,8 @@ function updateBot(e) {
     }
   }
 
-  // bite when right next to a visible enemy
-  if (target && Math.hypot(e.x - target.x, e.y - target.y) < 42) {
+  // bite a nearby enemy (unless fleeing) — face it and snap
+  if (target && !e.retreating && Math.hypot(e.x - target.x, e.y - target.y) < 42) {
     const t = Math.atan2(target.y - e.y, target.x - e.x);
     let diff = t - e.angle;
     while (diff >  Math.PI) diff -= 2 * Math.PI;
@@ -91,6 +95,8 @@ function updateBot(e) {
     e.angle += diff * 0.3;
     if (e.biteAnim <= 0 && e.biteCooldown <= 0) { e.biteAnim = BITE_TIME; e.biteCooldown = BITE_TIME + 10; }
   }
+  if (e.biteAnim === 10) meleeHit(e, ATTACK_DMG);   // a bite that lands hurts enemies
+  healNearQueen(e);
 
   if (e.biteAnim > 0) e.biteAnim--;
   if (e.biteCooldown > 0) e.biteCooldown--;

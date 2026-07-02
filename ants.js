@@ -9,7 +9,7 @@ const player = {
   x: 0, y: 0,
   size: 14,
   radius: 6,          // small circle for ant-vs-ant collision
-  speed: 3,
+  speed: 2.6,
   angle: 0,
   team: "red",
   color: TEAMS.red.color,
@@ -17,6 +17,7 @@ const player = {
   moving: false,
   biteAnim: 0,        // counts down during a bite
   biteCooldown: 0,
+  hp: 20, maxHp: 20,
 };
 
 // ---- Curved, spiky mandibles (jaws) ----

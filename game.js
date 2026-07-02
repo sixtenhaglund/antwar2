@@ -113,9 +113,11 @@ function update() {
     } else {
       digAt(ai + dx, aj + dy, 4);        // straight ahead: just the one block
     }
+    meleeHit(player, ATTACK_DMG);        // and hit any enemy in front
   }
   if (player.biteAnim > 0) player.biteAnim--;
   if (player.biteCooldown > 0) player.biteCooldown--;
+  healNearQueen(player);                 // heal when back at your nest
 
   // AI ants (both teams)
   for (const b of bots) updateBot(b);
@@ -197,6 +199,13 @@ function draw() {
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.size + 5, 0, Math.PI * 2);
   ctx.stroke();
+
+  // your hp bar
+  const w = player.size * 2.4, bx = player.x - w / 2, by = player.y - player.size - 16;
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(bx, by, w, 4);
+  ctx.fillStyle = "#5ad25a";
+  ctx.fillRect(bx, by, w * (player.hp / player.maxHp), 4);
 
   ctx.restore();
 
