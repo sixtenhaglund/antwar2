@@ -2,6 +2,14 @@
 
 function allAnts() { return [player, ...bots.filter(b => !b.dead)]; }
 
+// everything that can be hit: ants + queens
+function combatants() {
+  const list = [player];
+  for (const b of bots) if (!b.dead) list.push(b);
+  for (const n of nests) if (!n.queen.dead) list.push(n.queen);
+  return list;
+}
+
 function ownNest(a) { return nests.find(n => n.team === a.team); }
 
 // Send an ant back to its queen with full health.
@@ -21,17 +29,23 @@ function hurt(t, dmg) {
   if (t.dead) return;
   t.hp -= dmg;
   if (t.hp <= 0) {
-    if (t === player) respawn(player);   // you pop back at your queen
-    else t.dead = true;                  // a bot dies; its queen lays a fresh egg
+    if (t.isQueen) {                     // a queen died → game over
+      t.dead = true;
+      gameState = (t.team === player.team) ? "lost" : "won";
+    } else if (t === player) {
+      respawn(player);                   // you pop back at your queen
+    } else {
+      t.dead = true;                     // a bot dies; its queen lays a fresh egg
+    }
   }
 }
 
-// Melee: damage enemy ants right in front of `a`'s mouth.
+// Melee: damage enemy ants OR the enemy queen right in front of `a`'s mouth.
 function meleeHit(a, dmg) {
   const mx = a.x + Math.cos(a.angle) * a.size * 1.2;
   const my = a.y + Math.sin(a.angle) * a.size * 1.2;
   const reach = a.size * 1.1;
-  for (const t of allAnts()) {
+  for (const t of combatants()) {
     if (t === a || t.team === a.team) continue;   // no friendly fire
     if (Math.hypot(mx - t.x, my - t.y) < reach + t.radius) hurt(t, dmg);
   }

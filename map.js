@@ -6,7 +6,8 @@ const nests = [
   { team: "blue", color: "#4f8fe0", x: WORLD - 300, y: WORLD / 2 },
 ];
 for (const n of nests) {
-  n.queen = { x: n.x, y: n.y, size: 26, radius: 22, color: n.color };
+  n.queen = { x: n.x, y: n.y, size: 26, radius: 22, color: n.color,
+              team: n.team, hp: 150, maxHp: 150, isQueen: true, dead: false };
 }
 
 // ---- Breakable rocks on a grid (dig through them) ----
@@ -201,9 +202,17 @@ function drawNests() {
 
     drawQueen(n.queen);
 
+    // queen hp bar
+    const q = n.queen;
+    const w = 64, bx = q.x - w / 2, by = q.y - 46;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(bx, by, w, 5);
+    ctx.fillStyle = "#5ad25a";
+    ctx.fillRect(bx, by, w * Math.max(0, q.hp / q.maxHp), 5);
+
     ctx.fillStyle = n.color;
     ctx.font = "16px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(n.team.toUpperCase() + (n.team === player.team ? " (you)" : ""), n.x, n.y - 52);
+    ctx.fillText(n.team.toUpperCase() + (n.team === player.team ? " (you)" : ""), n.x, n.y - 58);
   }
 }

@@ -23,12 +23,15 @@ let gameState = "menu";
 function startGame() {
   player.team = "red";
   player.color = TEAMS[player.team].color;   // real team color in-game
+  player.hp = player.maxHp;
   player.x = nests[0].x;
   player.y = nests[0].y + 60;
-  // start with eggs — queens hatch the ants after 5s
+  // reset queens, then start each team with eggs (hatch after 5s)
   bots.length = 0;
   eggs.length = 0;
   for (const n of nests) {
+    n.queen.hp = n.queen.maxHp;
+    n.queen.dead = false;
     n.layTimer = LAY_INTERVAL;
     for (let k = 0; k < POP_CAP; k++) layEgg(n);
   }
@@ -188,7 +191,7 @@ function drawMinimap() {
 function draw() {
   ctx.fillStyle = "#2a1d10";   // tunnel floor (ground)
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  if (gameState !== "playing") return;
+  if (gameState === "menu") return;
 
   computeLit();   // what the player can currently see
 
@@ -223,6 +226,19 @@ function draw() {
   ctx.restore();
 
   drawMinimap();   // screen-fixed overview (after the camera reset)
+
+  // win / lose banner
+  if (gameState === "won" || gameState === "lost") {
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.textAlign = "center";
+    ctx.fillStyle = gameState === "won" ? "#4fd04f" : "#d0453f";
+    ctx.font = "bold 64px monospace";
+    ctx.fillText(gameState === "won" ? "YOU WIN!" : "YOU LOSE", canvas.width / 2, canvas.height / 2);
+    ctx.fillStyle = "#e8dcc0";
+    ctx.font = "18px monospace";
+    ctx.fillText("refresh the page to play again", canvas.width / 2, canvas.height / 2 + 48);
+  }
 }
 
 // ---- Loop ----

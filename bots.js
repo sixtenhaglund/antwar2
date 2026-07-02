@@ -83,6 +83,16 @@ function pickTarget(e) {
       if (score < bestScore) { best = t; bestScore = score; }
     }
   }
+  // the enemy queen is the objective — attack her when she's in view
+  for (const n of nests) {
+    const q = n.queen;
+    if (q.team === e.team || q.dead) continue;
+    const d = Math.hypot(e.x - q.x, e.y - q.y);
+    if (d < e.sightRange && hasLineOfSight(e.x, e.y, q.x, q.y)) {
+      const score = 30 + d * 0.3;                 // like a modest target
+      if (score < bestScore) { best = q; bestScore = score; }
+    }
+  }
   return best;
 }
 
