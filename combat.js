@@ -15,7 +15,6 @@ function respawn(a) {
   a.seenTimer = 0;
   a.path = [];
   a.pathIndex = 1;
-  a.retreating = false;
 }
 
 function hurt(t, dmg) {
@@ -53,7 +52,7 @@ function resolveAntCollisions() {
   }
 }
 
-// Slowly heal when near your own queen (makes retreating worthwhile).
+// Slowly heal when near your own queen (so home ground matters).
 function healNearQueen(a) {
   const nest = ownNest(a);
   if (a.hp < a.maxHp && Math.hypot(a.x - nest.x, a.y - nest.y) < 140) {

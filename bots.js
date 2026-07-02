@@ -8,7 +8,7 @@ function spawnBot(nest, team) {
     angle: 0, team, color: TEAMS[team].color,   // real team color in-game
     walkPhase: 0, moving: false,
     biteAnim: 0, biteCooldown: 0,
-    hp: 40, maxHp: 40, retreating: false,
+    hp: 40, maxHp: 40,
     path: [], pathIndex: 1, pathTimer: Math.floor(Math.random() * 45),   // stagger repaths
     lastSeen: null, seenTimer: 0, sightRange: 300,
     searchTarget: null, searchTimer: 0,
@@ -19,20 +19,24 @@ function cellCenter(c) {
   return { x: ROCK_STEP / 2 + c.i * ROCK_STEP, y: ROCK_STEP / 2 + c.j * ROCK_STEP };
 }
 
-// Nearest enemy ant this bot can actually see (other team, in range, line of sight).
-function nearestEnemy(e) {
-  let best = null, bd = Infinity;
+// Best enemy this bot can see: prefer the weakest, then the nearest — so a
+// group focus-fires low-HP targets to finish them off.
+function pickTarget(e) {
+  let best = null, bestScore = Infinity;
   for (const t of [player, ...bots]) {
     if (t === e || t.team === e.team) continue;   // skip self and allies
     const d = Math.hypot(e.x - t.x, e.y - t.y);
-    if (d < e.sightRange && d < bd && hasLineOfSight(e.x, e.y, t.x, t.y)) { best = t; bd = d; }
+    if (d < e.sightRange && hasLineOfSight(e.x, e.y, t.x, t.y)) {
+      const score = t.hp + d * 0.3;               // low HP + close = best
+      if (score < bestScore) { best = t; bestScore = score; }
+    }
   }
   return best;
 }
 
 function updateBot(e) {
   // Detection: remember where it last saw an enemy.
-  const target = nearestEnemy(e);
+  const target = pickTarget(e);
   if (target) {
     e.lastSeen = { x: target.x, y: target.y };
     e.seenTimer = 240;
@@ -40,30 +44,28 @@ function updateBot(e) {
     e.seenTimer--;
   }
 
-  // Retreat when badly hurt; come back out once healed up (hysteresis).
-  if (e.hp < e.maxHp * 0.35) e.retreating = true;
-  else if (e.hp > e.maxHp * 0.75) e.retreating = false;
-
-  // Goal priority: flee home when retreating > chase an enemy > search.
-  const chasing = e.seenTimer > 0 && e.lastSeen && !e.retreating;
-  if (!chasing && !e.retreating) {
-    const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 70;
+  // Chase the last-seen enemy; otherwise push toward the ENEMY nest (with some
+  // spread) so the team advances to the front line instead of wandering.
+  const chasing = e.seenTimer > 0 && e.lastSeen;
+  if (!chasing) {
+    const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 90;
     if (!e.searchTarget || reached || --e.searchTimer <= 0) {
-      e.searchTarget = { x: 120 + Math.random() * (WORLD - 240), y: 120 + Math.random() * (WORLD - 240) };
-      e.searchTimer = 420;
+      const foeNest = nests.find(n => n.team !== e.team);
+      e.searchTarget = { x: foeNest.x + (Math.random() * 400 - 200), y: foeNest.y + (Math.random() * 400 - 200) };
+      e.searchTimer = 300;
     }
   }
-  const goal = e.retreating ? ownNest(e).queen : (chasing ? e.lastSeen : e.searchTarget);
+  const goal = chasing ? e.lastSeen : e.searchTarget;
 
   // re-plan often while chasing (beeline), less often otherwise
   if (--e.pathTimer <= 0) {
-    e.pathTimer = chasing ? 8 : (e.retreating ? 16 : 45);
+    e.pathTimer = chasing ? 8 : 45;
     e.path = findPath(cellIndex(e.x), cellIndex(e.y), cellIndex(goal.x), cellIndex(goal.y)) || [];
     e.pathIndex = 1;
   }
 
-  // Stop and fight once close to a visible enemy (don't path into them).
-  const inMelee = target && !e.retreating && Math.hypot(e.x - target.x, e.y - target.y) < 40;
+  // Stop and fight once in biting range of a visible enemy.
+  const inMelee = target && Math.hypot(e.x - target.x, e.y - target.y) < 28;
 
   e.moving = false;
   if (!inMelee && e.path && e.pathIndex < e.path.length) {
@@ -89,8 +91,8 @@ function updateBot(e) {
     }
   }
 
-  // bite a nearby enemy (unless fleeing) — face it and snap
-  if (target && !e.retreating && Math.hypot(e.x - target.x, e.y - target.y) < 42) {
+  // bite a nearby enemy — face it and snap
+  if (target && Math.hypot(e.x - target.x, e.y - target.y) < 34) {
     const t = Math.atan2(target.y - e.y, target.x - e.x);
     let diff = t - e.angle;
     while (diff >  Math.PI) diff -= 2 * Math.PI;
