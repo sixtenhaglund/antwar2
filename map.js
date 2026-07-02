@@ -238,14 +238,6 @@ function drawRocks() {
 
 function drawNests() {
   for (const n of nests) {
-    ctx.save();
-    ctx.globalAlpha = 0.15;
-    ctx.fillStyle = n.color;
-    ctx.beginPath();
-    ctx.arc(n.x, n.y, 150, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
     drawQueen(n.queen);
 
     // queen hp bar
@@ -261,18 +253,16 @@ function drawNests() {
     ctx.textAlign = "center";
     ctx.fillText(n.team.toUpperCase() + (n.team === player.team ? " (you)" : ""), n.x, n.y - 58);
 
-    // food pile: a little heap of green morsels + a count
-    const pile = Math.min(30, n.food);
-    for (let k = 0; k < pile; k++) {
-      const px = n.x + 60 + (k % 6) * 6;
-      const py = n.y + 40 - Math.floor(k / 6) * 6;
-      ctx.fillStyle = "#9ad84a";
+    // food pile: a dark brown circle that grows with the food amount
+    if (n.food > 0) {
+      const rad = 5 + Math.min(28, n.food) * 0.9;
+      ctx.fillStyle = "#2e1c0c";
       ctx.beginPath();
-      ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+      ctx.arc(n.x + 80, n.y + 44, rad, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.fillStyle = "#9ad84a";
+    ctx.fillStyle = "#9a7a4c";
     ctx.font = "12px monospace";
-    ctx.fillText("food " + n.food, n.x + 78, n.y + 62);
+    ctx.fillText("food " + Math.floor(n.food), n.x + 80, n.y + 90);
   }
 }

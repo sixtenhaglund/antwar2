@@ -1,5 +1,22 @@
-// ---- Beetles: neutral bugs that wander caves; kill them for food ----
+// ---- Beetles: neutral bugs that wander caves; kill them for meat ----
 const beetles = [];
+
+// ---- Meat: dropped by dead beetles; carry it to your nest for food ----
+const meats = [];
+function spawnMeat(x, y) { meats.push({ x, y, kind: "meat", carried: false }); }
+function removeMeat(m) { const i = meats.indexOf(m); if (i >= 0) meats.splice(i, 1); }
+function drawMeats() {
+  for (const m of meats) {
+    if (!m.carried && !lit.has(rockKey(cellIndex(m.x), cellIndex(m.y)))) continue;
+    ctx.fillStyle = "#8a3a2a";
+    ctx.beginPath();
+    ctx.ellipse(m.x, m.y, 5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
 
 function spawnBeetle(x, y) {
   beetles.push({

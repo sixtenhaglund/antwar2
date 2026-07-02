@@ -1,9 +1,9 @@
 // ---- AI ants: each belongs to a team and hunts the other team ----
 const bots = [];
 function spawnBotAt(x, y, team) {
-  // roles: attacker (assault, group up), defender (guard queen), nurse (mind eggs)
+  // roles: attacker (assault), defender (guard queen), hunter (beetles→meat), nurse (eggs)
   const roll = Math.random();
-  const role = roll < 0.55 ? "attacker" : (roll < 0.8 ? "defender" : "nurse");
+  const role = roll < 0.4 ? "attacker" : roll < 0.6 ? "defender" : roll < 0.8 ? "hunter" : "nurse";
   bots.push({
     x, y,
     size: 14, radius: 6, speed: 2.6,
@@ -29,18 +29,19 @@ function teamCount(team) {
   let c = 0;
   if (player.team === team && !player.hatching) c++;   // the player counts too
   for (const b of bots) if (!b.dead && b.team === team) c++;
-  for (const g of eggs) if (!g.dead && g.team === team) c++;   // includes the player egg
+  for (const g of eggs) if (!g.dead && g.team === team) c++;
+  for (const L of larvae) if (!L.dead && L.team === team) c++;
   return c;
 }
 
 function layEgg(nest) {
   eggs.push({
-    x: nest.x + (Math.random() * 80 - 40),
-    y: nest.y + 55 + Math.random() * 35,
+    x: nest.x + (Math.random() * 300 - 150),   // spread over a larger radius
+    y: nest.y + (Math.random() * 220 - 60),
     team: nest.team,
     timer: EGG_TIME,
     hp: 15, maxHp: 15,      // 3 bites (5 dmg each) to destroy
-    dead: false, carried: false,
+    dead: false, carried: false, kind: "egg",
   });
 }
 
@@ -59,13 +60,7 @@ function updateEggs() {
     if (g.dead) { eggs.splice(i, 1); continue; }   // destroyed egg
     if (g.carried) continue;                        // timer paused while carried
     if (--g.timer <= 0) {
-      if (g.isPlayer) {                  // the player's egg hatches into you
-        player.hatching = false;
-        player.x = g.x; player.y = g.y;
-        player.hp = player.maxHp;
-      } else {
-        spawnBotAt(g.x, g.y, g.team);
-      }
+      spawnLarva(g.x, g.y, g.team, !!g.isPlayer);   // hatches into a larva
       eggs.splice(i, 1);
     }
   }
@@ -114,6 +109,17 @@ function pickTarget(e) {
   return best;
 }
 
+function nearestBeetle(e) {
+  let best = null, bd = 450;
+  for (const b of beetles) { if (b.dead) continue; const d = Math.hypot(e.x - b.x, e.y - b.y); if (d < bd) { best = b; bd = d; } }
+  return best;
+}
+function nearestMeat(e) {
+  let best = null, bd = 450;
+  for (const m of meats) { if (m.carried) continue; const d = Math.hypot(e.x - m.x, e.y - m.y); if (d < bd) { best = m; bd = d; } }
+  return best;
+}
+
 // Nearest exposed friendly egg (not carried, not already safe in a room).
 function nearestLooseEgg(e) {
   let best = null, bd = 650;
@@ -150,6 +156,35 @@ function botIdleBehavior(e) {
         const h = ownNest(e).queen;      // nothing to do → hover near the queen
         e.searchTarget = { x: h.x + (Math.random() * 120 - 60), y: h.y + (Math.random() * 120 - 60) };
         e.searchTimer = 240;
+      }
+    }
+  } else if (e.role === "hunter") {
+    if (e.carrying && e.carrying.kind === "meat") {
+      // bring meat home and drop it in the food pile
+      const h = ownNest(e).queen;
+      e.searchTarget = { x: h.x, y: h.y };
+      if (Math.hypot(e.x - h.x, e.y - h.y) < 120) {
+        ownNest(e).food += MEAT_VALUE;
+        removeMeat(e.carrying);
+        e.carrying = null;
+      }
+    } else {
+      const m = nearestMeat(e);
+      if (m) {
+        e.searchTarget = { x: m.x, y: m.y };
+        if (Math.hypot(e.x - m.x, e.y - m.y) < 22) pickUp(e, m);
+      } else {
+        const bug = nearestBeetle(e);
+        if (bug) {
+          e.searchTarget = { x: bug.x, y: bug.y };
+          if (Math.hypot(e.x - bug.x, e.y - bug.y) < 30) {   // bite the beetle
+            e.angle = Math.atan2(bug.y - e.y, bug.x - e.x);
+            if (e.biteAnim <= 0 && e.biteCooldown <= 0) { e.biteAnim = BITE_TIME; e.biteCooldown = BITE_TIME + 10; }
+          }
+        } else if (!e.searchTarget || reached || --e.searchTimer <= 0) {
+          e.searchTarget = { x: 200 + Math.random() * (WORLD - 400), y: 200 + Math.random() * (WORLD - 400) };
+          e.searchTimer = 300;
+        }
       }
     }
   } else if (e.role === "attacker") {
@@ -257,8 +292,11 @@ function updateBot(e) {
     keepOutOfRock(e, r, bodyR);
   }
 
-  // a carried egg rides on the nurse's back
-  if (e.carrying) { e.carrying.x = e.x; e.carrying.y = e.y - e.size - 4; }
+  // a carried item rides in the mouth
+  if (e.carrying) {
+    e.carrying.x = e.x + Math.cos(e.angle) * e.size * 1.1;
+    e.carrying.y = e.y + Math.sin(e.angle) * e.size * 1.1;
+  }
 }
 
 function drawBots() {

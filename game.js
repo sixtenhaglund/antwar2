@@ -26,6 +26,7 @@ function startGame() {
   player.color = TEAMS[player.team].color;   // real team color in-game
   player.hp = player.maxHp;
   player.hatching = true;                     // you hatch from an egg too
+  player.isLarva = false; player.growth = 0;
   player.stamina = player.maxStamina;
   player.carrying = null;
   player.x = nests[0].x;
@@ -33,14 +34,16 @@ function startGame() {
   // reset queens; they lay the ants over time (nobody pre-spawns)
   bots.length = 0;
   eggs.length = 0;
+  larvae.length = 0;
+  meats.length = 0;
   for (const n of nests) {
     n.queen.hp = n.queen.maxHp;
     n.queen.dead = false;
     n.layTimer = LAY_INTERVAL;
-    n.food = 0;
+    n.food = START_FOOD;   // seed food so the first larvae can grow
   }
   // lay your egg at the nest; the rest the queens produce over time
-  eggs.push({ x: player.x, y: player.y, team: "red", timer: EGG_TIME, isPlayer: true, dead: false, carried: false });
+  eggs.push({ x: player.x, y: player.y, team: "red", timer: 180, isPlayer: true, dead: false, carried: false, kind: "egg" });
   // beetles in the random caves
   beetles.length = 0;
   for (const c of caves) {
@@ -88,12 +91,13 @@ function update() {
     player.angle += diff * 0.3;
   }
 
-  // sprint with Shift (uses stamina; recovers when not sprinting)
-  // (Shift, not Ctrl — Ctrl+W would close the browser tab!)
-  const wantSprint = keys["shift"] && player.stamina > 0 && (keys["w"] || keys["s"] || keys["arrowup"] || keys["arrowdown"]);
+  // larvae move slower and can't sprint; grown ants can
+  const baseSpeed = player.isLarva ? LARVA_SPEED : player.speed;
+  const wantSprint = !player.isLarva && keys["shift"] && player.stamina > 0 &&
+    (keys["w"] || keys["s"] || keys["arrowup"] || keys["arrowdown"]);
   if (wantSprint) player.stamina = Math.max(0, player.stamina - STAMINA_DRAIN);
   else player.stamina = Math.min(player.maxStamina, player.stamina + STAMINA_REGEN);
-  const pSpd = wantSprint ? player.speed * SPRINT_MULT : player.speed;
+  const pSpd = wantSprint ? baseSpeed * SPRINT_MULT : baseSpeed;
 
   // W drives toward the cursor; S backs away from it.
   const fx = Math.cos(player.angle), fy = Math.sin(player.angle);   // toward cursor
@@ -147,27 +151,36 @@ function update() {
   if (player.biteCooldown > 0) player.biteCooldown--;
   healNearQueen(player);                 // heal when back at your nest
 
-  // F: pick up the nearest egg, or place the one you're carrying
+  // F: drop what you carry, or pick up the nearest egg / meat
   if (keys["f"] && !fPrev) {
     if (player.carrying) {
-      player.carrying.x = player.x;
-      player.carrying.y = player.y;
-      player.carrying.carried = false;   // timer resumes
-      player.carrying = null;
+      dropCarried(player);
     } else {
-      let best = null, bd = 32;
+      let best = null, bd = 34;
       for (const g of eggs) {
         if (g.dead || g.carried || g.isPlayer) continue;
         const d = Math.hypot(g.x - player.x, g.y - player.y);
         if (d < bd) { best = g; bd = d; }
       }
-      if (best) { best.carried = true; player.carrying = best; }   // timer pauses
+      for (const m of meats) {
+        if (m.carried) continue;
+        const d = Math.hypot(m.x - player.x, m.y - player.y);
+        if (d < bd) { best = m; bd = d; }
+      }
+      if (best) pickUp(player, best);
     }
   }
-  // carried egg rides above your head
+  // carried item rides in your mouth
   if (player.carrying) {
-    player.carrying.x = player.x;
-    player.carrying.y = player.y - player.size - 4;
+    player.carrying.x = player.x + Math.cos(player.angle) * player.size * 1.1;
+    player.carrying.y = player.y + Math.sin(player.angle) * player.size * 1.1;
+  }
+  // deliver carried meat to your nest → food
+  if (player.carrying && player.carrying.kind === "meat" &&
+      Math.hypot(player.x - nests[0].x, player.y - nests[0].y) < 130) {
+    nests[0].food += MEAT_VALUE;
+    removeMeat(player.carrying);
+    player.carrying = null;
   }
   }   // end player control
   fPrev = keys["f"];
@@ -183,8 +196,9 @@ function update() {
   // ants push each other apart
   resolveAntCollisions();
 
-  // neutral beetles + blood particles
+  // beetles, larvae growing into ants, blood particles
   updateBeetles();
+  updateLarvae();
   updateParticles();
 }
 
@@ -259,9 +273,14 @@ function draw() {
   drawRocks();
   drawNests();
   drawBeetles();
+  drawMeats();
+  drawLarvae();
   drawEggs();
   drawBots();
-  if (!player.hatching) drawAnt(player);
+  if (!player.hatching) {
+    if (player.isLarva) drawLarvaShape(player.x, player.y, player.walkPhase, player.growth / GROW_MAX);
+    else drawAnt(player);
+  }
   drawParticles();   // blood on top
 
   drawFog();   // hide everything the player can't see (rock blocks vision)

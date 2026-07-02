@@ -17,6 +17,18 @@ function combatants() {
 
 function ownNest(a) { return nests.find(n => n.team === a.team); }
 
+// ---- Carrying: one slot; picking something up drops what you had ----
+function dropCarried(carrier) {
+  if (!carrier.carrying) return;
+  carrier.carrying.carried = false;
+  carrier.carrying = null;
+}
+function pickUp(carrier, item) {
+  dropCarried(carrier);   // one thing at a time — drop the previous
+  item.carried = true;
+  carrier.carrying = item;
+}
+
 // Send an ant back to its queen with full health.
 function respawn(a) {
   // drop any carried egg where you died (its timer resumes there)
@@ -63,13 +75,13 @@ function meleeHit(a, dmg) {
       hurt(t, dmg);
     }
   }
-  // beetles are neutral; killing one gives food to the attacker's colony
+  // beetles are neutral; killing one drops meat to carry home
   for (const bug of beetles) {
     if (bug.dead) continue;
     if (Math.hypot(mx - bug.x, my - bug.y) < reach + bug.radius) {
       spawnBlood(bug.x, bug.y);
       bug.hp -= dmg;
-      if (bug.hp <= 0) { bug.dead = true; ownNest(a).food += FOOD_PER_BEETLE; }
+      if (bug.hp <= 0) { bug.dead = true; spawnMeat(bug.x, bug.y); }
     }
   }
 }
