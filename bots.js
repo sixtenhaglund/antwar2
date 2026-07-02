@@ -1,6 +1,9 @@
 // ---- AI ants: each belongs to a team and hunts the other team ----
 const bots = [];
 function spawnBotAt(x, y, team) {
+  // roles: attacker (assault, group up), defender (guard queen), nurse (mind eggs)
+  const roll = Math.random();
+  const role = roll < 0.55 ? "attacker" : (roll < 0.8 ? "defender" : "nurse");
   bots.push({
     x, y,
     size: 14, radius: 6, speed: 2.6,
@@ -9,6 +12,7 @@ function spawnBotAt(x, y, team) {
     biteAnim: 0, biteCooldown: 0,
     hp: 40, maxHp: 40, dead: false,
     stamina: STAMINA_MAX,
+    role, carrying: null, roomTarget: null,
     path: [], pathIndex: 1, pathTimer: Math.floor(Math.random() * 45),   // stagger repaths
     lastSeen: null, seenTimer: 0, sightRange: 300,
     searchTarget: null, searchTimer: 0,
@@ -110,6 +114,60 @@ function pickTarget(e) {
   return best;
 }
 
+// Nearest exposed friendly egg (not carried, not already safe in a room).
+function nearestLooseEgg(e) {
+  let best = null, bd = 650;
+  for (const g of eggs) {
+    if (g.dead || g.carried || g.isPlayer || g.team !== e.team) continue;
+    if (isRoomCell(cellIndex(g.x), cellIndex(g.y))) continue;   // already safe
+    const d = Math.hypot(e.x - g.x, e.y - g.y);
+    if (d < bd) { best = g; bd = d; }
+  }
+  return best;
+}
+
+// Where an idle bot heads, by role.
+function botIdleBehavior(e) {
+  const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 90;
+
+  if (e.role === "nurse") {
+    if (e.carrying) {
+      // carry the egg to a safe room, then set it down there
+      if (!e.roomTarget) e.roomTarget = findRoom(e.x, e.y) || ownNest(e).queen;
+      e.searchTarget = e.roomTarget;
+      if (isRoomCell(cellIndex(e.x), cellIndex(e.y)) ||
+          Math.hypot(e.x - e.roomTarget.x, e.y - e.roomTarget.y) < 40) {
+        e.carrying.carried = false;   // drop it (timer resumes)
+        e.carrying = null;
+        e.roomTarget = null;
+      }
+    } else {
+      const egg = nearestLooseEgg(e);
+      if (egg) {
+        e.searchTarget = { x: egg.x, y: egg.y };
+        if (Math.hypot(e.x - egg.x, e.y - egg.y) < 24) { egg.carried = true; e.carrying = egg; e.roomTarget = null; }
+      } else if (!e.searchTarget || reached || --e.searchTimer <= 0) {
+        const h = ownNest(e).queen;      // nothing to do → hover near the queen
+        e.searchTarget = { x: h.x + (Math.random() * 120 - 60), y: h.y + (Math.random() * 120 - 60) };
+        e.searchTimer = 240;
+      }
+    }
+  } else if (e.role === "attacker") {
+    // head for the enemy nest — everyone converging naturally forms a group
+    if (!e.searchTarget || reached || --e.searchTimer <= 0) {
+      const foe = nests.find(n => n.team !== e.team);
+      e.searchTarget = { x: foe.x + (Math.random() * 300 - 150), y: foe.y + (Math.random() * 300 - 150) };
+      e.searchTimer = 300;
+    }
+  } else {   // defender: patrol around its own queen
+    if (!e.searchTarget || reached || --e.searchTimer <= 0) {
+      const h = ownNest(e).queen;
+      e.searchTarget = { x: h.x + (Math.random() * 180 - 90), y: h.y + (Math.random() * 180 - 90) };
+      e.searchTimer = 300;
+    }
+  }
+}
+
 function updateBot(e) {
   // Detection: remember where it last saw an enemy.
   const target = pickTarget(e);
@@ -120,23 +178,9 @@ function updateBot(e) {
     e.seenTimer--;
   }
 
-  // Chase the last-seen enemy. With nothing to do, either MINE (dig toward a
-  // random spot) or GO HOME to guard the queen — picked when a new goal is due.
+  // Chase the last-seen enemy. Otherwise act by role (attack / defend / nurse).
   const chasing = e.seenTimer > 0 && e.lastSeen;
-  if (!chasing) {
-    const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 90;
-    if (!e.searchTarget || reached || --e.searchTimer <= 0) {
-      if (Math.random() < 0.5) {
-        // mine: carve a tunnel toward a random spot
-        e.searchTarget = { x: 120 + Math.random() * (WORLD - 240), y: 120 + Math.random() * (WORLD - 240) };
-      } else {
-        // guard: head back near the queen
-        const home = ownNest(e).queen;
-        e.searchTarget = { x: home.x + (Math.random() * 120 - 60), y: home.y + (Math.random() * 120 - 60) };
-      }
-      e.searchTimer = 300;
-    }
-  }
+  if (!chasing) botIdleBehavior(e);
   const goal = chasing ? e.lastSeen : e.searchTarget;
 
   // sprint while chasing (drains stamina; recovers while not)
@@ -212,6 +256,9 @@ function updateBot(e) {
     if (Math.abs(r.x - e.x) > 90 || Math.abs(r.y - e.y) > 90) continue;
     keepOutOfRock(e, r, bodyR);
   }
+
+  // a carried egg rides on the nurse's back
+  if (e.carrying) { e.carrying.x = e.x; e.carrying.y = e.y - e.size - 4; }
 }
 
 function drawBots() {

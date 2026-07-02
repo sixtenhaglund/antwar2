@@ -66,6 +66,30 @@ placeRocks();
 // Which grid cell is a world position in?
 function cellIndex(v) { return Math.round((v - ROCK_STEP / 2) / ROCK_STEP); }
 
+// A "room" cell has a fully-open 3x3 around it (an open area >= 3x3).
+function isRoomCell(i, j) {
+  for (let di = -1; di <= 1; di++)
+    for (let dj = -1; dj <= 1; dj++)
+      if (rockGrid.has(rockKey(i + di, j + dj))) return false;
+  return true;
+}
+
+// Find the nearest room cell to (x,y), spiralling outward. Returns {x,y} or null.
+function findRoom(x, y) {
+  const si = cellIndex(x), sj = cellIndex(y);
+  for (let rad = 0; rad <= 16; rad++) {
+    for (let di = -rad; di <= rad; di++) {
+      for (let dj = -rad; dj <= rad; dj++) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== rad) continue;   // only the ring
+        if (isRoomCell(si + di, sj + dj)) {
+          return { x: ROCK_STEP / 2 + (si + di) * ROCK_STEP, y: ROCK_STEP / 2 + (sj + dj) * ROCK_STEP };
+        }
+      }
+    }
+  }
+  return null;
+}
+
 // Damage the rock in grid cell (i,j); smash it at 0 HP.
 function digAt(i, j, amount) {
   const r = rockGrid.get(rockKey(i, j));

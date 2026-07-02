@@ -46,6 +46,7 @@ function hurt(t, dmg) {
       respawn(player);                   // you pop back at your queen
     } else {
       t.dead = true;                     // a bot dies; its queen lays a fresh egg
+      if (t.carrying) { t.carrying.carried = false; t.carrying = null; }   // drop egg
     }
   }
 }
