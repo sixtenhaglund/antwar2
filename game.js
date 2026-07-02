@@ -42,6 +42,8 @@ function startGame() {
     n.layTimer = LAY_INTERVAL;
     n.food = START_FOOD;   // seed food so the first larvae can grow
   }
+  // each colony starts with one AI larva (the first ant to grow), fed by the queen
+  for (const n of nests) spawnLarva(n.x + 40, n.y + 40, n.team, false);
   // lay your egg at the nest; the rest the queens produce over time
   eggs.push({ x: player.x, y: player.y, team: "red", timer: 180, isPlayer: true, dead: false, carried: false, kind: "egg" });
   // beetles in the random caves
@@ -127,8 +129,8 @@ function update() {
   player.moving = (player.x !== sx || player.y !== sy);
   if (player.moving) player.walkPhase += 0.35;
 
-  // bite (dig)
-  if (mouse.down && player.biteAnim <= 0 && player.biteCooldown <= 0) {
+  // bite (dig / attack) — not while your mouth is full
+  if (mouse.down && !player.carrying && player.biteAnim <= 0 && player.biteCooldown <= 0) {
     player.biteAnim = BITE_TIME;
     player.biteCooldown = BITE_TIME + 28;   // longer gap between bites
   }
@@ -173,7 +175,24 @@ function update() {
         const d = Math.hypot(m.x - player.x, m.y - player.y);
         if (d < bd) { best = m; bd = d; }
       }
+      for (const L of larvae) {
+        if (L.dead || L.carried || L.team !== player.team) continue;
+        const d = Math.hypot(L.x - player.x, L.y - player.y);
+        if (d < bd) { best = L; bd = d; }
+      }
       if (best) pickUp(player, best);
+    }
+  }
+  // carrying meat next to a friendly larva feeds it (grows it faster)
+  if (player.carrying && player.carrying.kind === "meat") {
+    for (const L of larvae) {
+      if (L.dead || L.team !== player.team) continue;
+      if (Math.hypot(player.x - L.x, player.y - L.y) < 26) {
+        L.growth = Math.min(GROW_MAX, L.growth + 40);
+        removeMeat(player.carrying);
+        player.carrying = null;
+        break;
+      }
     }
   }
   // carried item rides in your mouth

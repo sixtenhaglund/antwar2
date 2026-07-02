@@ -11,37 +11,40 @@ function spawnLarva(x, y, team, isPlayer) {
     player.hp = player.maxHp;
     return;
   }
-  larvae.push({ x, y, team, growth: 0, dead: false, wiggle: Math.random() * Math.PI * 2 });
-}
-
-// all growing larvae of a team (including the player if it's a larva)
-function larvaeOf(team) {
-  const list = [];
-  for (const L of larvae) if (!L.dead && L.team === team) list.push(L);
-  if (player.isLarva && player.team === team) list.push(player);
-  return list;
+  larvae.push({ x, y, team, growth: 0, dead: false, carried: false, kind: "larva", wiggle: Math.random() * Math.PI * 2 });
 }
 
 function updateLarvae() {
-  // Each queen feeds its least-grown larva from the food pile (the "queen feeds
-  // a larva, it grows into an ant" cycle — food comes from beetle meat).
+  // everyone grows slowly on their own (the player only grows this way, so the
+  // first grown ant is always an AI, not you)
+  for (const L of larvae) if (!L.dead && !L.carried) L.growth += PASSIVE_GROW;
+  if (player.isLarva) player.growth += PASSIVE_GROW;
+
+  // each queen feeds its least-grown AI larva extra from the food pile
   for (const n of nests) {
     if (n.food <= 0) continue;
-    const list = larvaeOf(n.team);
-    if (!list.length) continue;
-    let low = list[0];
-    for (const L of list) if (L.growth < low.growth) low = L;
+    let low = null;
+    for (const L of larvae) {
+      if (L.dead || L.carried || L.team !== n.team) continue;
+      if (!low || L.growth < low.growth) low = L;
+    }
+    if (!low) continue;
     low.growth += GROW_RATE;
     n.food = Math.max(0, n.food - FEED_COST);
-    if (low.growth >= GROW_MAX) {
-      if (low === player) player.isLarva = false;         // you become a full ant
-      else { low.dead = true; spawnBotAt(low.x, low.y, low.team); }
-    }
   }
+
+  // grown larvae become ants; you become a full ant when grown
   for (let i = larvae.length - 1; i >= 0; i--) {
-    if (larvae[i].dead) { larvae.splice(i, 1); continue; }
-    larvae[i].wiggle += 0.12;
+    const L = larvae[i];
+    if (L.dead) { larvae.splice(i, 1); continue; }
+    if (L.growth >= GROW_MAX && !L.carried) {
+      spawnBotAt(L.x, L.y, L.team);
+      larvae.splice(i, 1);
+      continue;
+    }
+    L.wiggle += 0.12;
   }
+  if (player.isLarva && player.growth >= GROW_MAX) player.isLarva = false;
 }
 
 // a pale wriggling grub that fattens up as it grows
