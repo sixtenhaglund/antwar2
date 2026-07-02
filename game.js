@@ -460,20 +460,17 @@ const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const discovered = new Set();   // cells the player has ever seen
 let lit = new Set();            // cells lit right now (recomputed each frame)
 
-// Flood-fill light from the player through OPEN space (rock blocks it), out to
-// the vision range. So you only see tunnels connected to where you are — an
-// enemy tunnel behind a wall stays dark until you mine into it. Walls bordering
-// the lit space are lit too (so you see what you can dig).
-function computeLit() {
-  lit = new Set();
-  const si = cellIndex(player.x), sj = cellIndex(player.y);
+// Flood-fill light from one source through OPEN space (rock blocks it), out to
+// the vision range. Walls bordering the lit space are lit too.
+function floodLight(src) {
+  const si = cellIndex(src.x), sj = cellIndex(src.y);
   const queue = [[si, sj]];
   const seen = new Set([rockKey(si, sj)]);
   let head = 0;
   while (head < queue.length) {
     const [i, j] = queue[head++];
     const cx = ROCK_STEP / 2 + i * ROCK_STEP, cy = ROCK_STEP / 2 + j * ROCK_STEP;
-    if (Math.hypot(cx - player.x, cy - player.y) > VISION) continue;
+    if (Math.hypot(cx - src.x, cy - src.y) > VISION) continue;
     lit.add(rockKey(i, j));                       // this open cell is lit
     for (const [di, dj] of NEIGHBORS) {           // light the walls around it
       const nk = rockKey(i + di, j + dj);
@@ -485,6 +482,15 @@ function computeLit() {
       seen.add(nk);
       queue.push([ni, nj]);
     }
+  }
+}
+
+// Shared vision: light from you AND every ally, so you see through their eyes.
+function computeLit() {
+  lit = new Set();
+  floodLight(player);
+  for (const b of bots) {
+    if (b.team === player.team) floodLight(b);
   }
 }
 
