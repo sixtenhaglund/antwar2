@@ -8,7 +8,7 @@ function spawnBot(nest, team) {
     angle: 0, team, color: TEAMS[team].color,   // real team color in-game
     walkPhase: 0, moving: false,
     biteAnim: 0, biteCooldown: 0,
-    hp: 20, maxHp: 20, retreating: false,
+    hp: 40, maxHp: 40, retreating: false,
     path: [], pathIndex: 1, pathTimer: Math.floor(Math.random() * 45),   // stagger repaths
     lastSeen: null, seenTimer: 0, sightRange: 300,
     searchTarget: null, searchTimer: 0,

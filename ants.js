@@ -17,7 +17,7 @@ const player = {
   moving: false,
   biteAnim: 0,        // counts down during a bite
   biteCooldown: 0,
-  hp: 20, maxHp: 20,
+  hp: 40, maxHp: 40,
 };
 
 // ---- Curved, spiky mandibles (jaws) ----
