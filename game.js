@@ -54,7 +54,6 @@ function startGame() {
   }
   discovered.clear();
   document.getElementById("menu").style.display = "none";
-  document.getElementById("hud").style.display = "block";
   gameState = "playing";
 }
 
