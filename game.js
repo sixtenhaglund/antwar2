@@ -460,8 +460,9 @@ function cellLOS(ti, tj) {
 
 function drawFog() {
   const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
-  const i0 = cellIndex(player.x - halfW) - 1, i1 = cellIndex(player.x + halfW) + 1;
-  const j0 = cellIndex(player.y - halfH) - 1, j1 = cellIndex(player.y + halfH) + 1;
+  // cover a full tile past the screen so edge rocks get fogged too
+  const i0 = cellIndex(player.x - halfW - ROCK_STEP), i1 = cellIndex(player.x + halfW + ROCK_STEP);
+  const j0 = cellIndex(player.y - halfH - ROCK_STEP), j1 = cellIndex(player.y + halfH + ROCK_STEP);
   const s = ROCK_STEP;
   ctx.fillStyle = "#000000";   // fully opaque: unseen tiles are pitch black
   for (let i = i0; i <= i1; i++) {
