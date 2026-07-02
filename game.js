@@ -404,12 +404,12 @@ function drawRocks() {
     if (r.broken) continue;
     if (r.x < left || r.x > right || r.y < top || r.y > bottom) continue;
     const s = r.size;
-    ctx.fillStyle = "#4a3823";        // dark dirt
+    ctx.fillStyle = "#4a3823";        // dark dirt wall (only wall-layer rocks show)
     ctx.fillRect(r.x - s, r.y - s, s * 2, s * 2);
     ctx.strokeStyle = "#2c2013";
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x - s, r.y - s, s * 2, s * 2);
-    if (r.hp < r.maxHp) {   // damage bar once hit
+    if (r.hp < r.maxHp) {   // dig-progress bar
       ctx.fillStyle = "rgba(0,0,0,0.5)";
       ctx.fillRect(r.x - s, r.y - s - 6, s * 2, 3);
       ctx.fillStyle = "#d0d0d0";
