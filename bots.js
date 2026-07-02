@@ -2,9 +2,15 @@
 const bots = [];
 function spawnBotAt(x, y, team) {
   // roles: attacker (assault), defender (guard queen), hunter (beetles→meat), nurse (eggs)
+  // the first few ants of a colony are locked as nurses — they raise the brood.
+  let antsAlive = 0;
+  for (const b of bots) if (!b.dead && b.team === team) antsAlive++;
+  const fixedNurse = antsAlive < 3;
   const roll = Math.random();
-  const role = roll < 0.4 ? "attacker" : roll < 0.6 ? "defender" : roll < 0.8 ? "hunter" : "nurse";
+  const role = fixedNurse ? "nurse"
+    : (roll < 0.4 ? "attacker" : roll < 0.6 ? "defender" : roll < 0.8 ? "hunter" : "nurse");
   bots.push({
+    fixedRole: fixedNurse,
     x, y,
     size: 14, radius: 6, speed: 2.6,
     angle: 0, team, color: TEAMS[team].color,   // real team color in-game
@@ -120,6 +126,17 @@ function nearestMeat(e) {
   return best;
 }
 
+// Nearest still-growing friendly larva.
+function nearestOwnLarva(e) {
+  let best = null, bd = 700;
+  for (const L of larvae) {
+    if (L.dead || L.carried || L.team !== e.team) continue;
+    const d = Math.hypot(e.x - L.x, e.y - L.y);
+    if (d < bd) { best = L; bd = d; }
+  }
+  return best;
+}
+
 // Nearest exposed friendly egg (not carried, not already safe in a room).
 function nearestLooseEgg(e) {
   let best = null, bd = 650;
@@ -169,7 +186,7 @@ function botIdleBehavior(e) {
     }
     return;
   }
-  if (!e.carrying) {
+  if (!e.carrying && e.role !== "nurse") {
     const m = nearestMeat(e);
     if (m && Math.hypot(e.x - m.x, e.y - m.y) < 130) {
       e.searchTarget = { x: m.x, y: m.y };
@@ -192,12 +209,20 @@ function botIdleBehavior(e) {
     } else {
       const egg = nearestLooseEgg(e);
       if (egg) {
+        // ferry an exposed egg to a safe room
         e.searchTarget = { x: egg.x, y: egg.y };
         if (Math.hypot(e.x - egg.x, e.y - egg.y) < 24) { egg.carried = true; e.carrying = egg; e.roomTarget = null; }
-      } else if (!e.searchTarget || reached || --e.searchTimer <= 0) {
-        const h = ownNest(e).queen;      // nothing to do → hover near the queen
-        e.searchTarget = { x: h.x + (Math.random() * 120 - 60), y: h.y + (Math.random() * 120 - 60) };
-        e.searchTimer = 240;
+      } else {
+        const larva = nearestOwnLarva(e);
+        if (larva) {
+          // tend a larva so it grows up faster
+          e.searchTarget = { x: larva.x, y: larva.y };
+          if (Math.hypot(e.x - larva.x, e.y - larva.y) < 26) larva.growth = Math.min(GROW_MAX, larva.growth + 0.5);
+        } else if (!e.searchTarget || reached || --e.searchTimer <= 0) {
+          const h = ownNest(e).queen;      // nothing to do → hover near the queen
+          e.searchTarget = { x: h.x + (Math.random() * 120 - 60), y: h.y + (Math.random() * 120 - 60) };
+          e.searchTimer = 240;
+        }
       }
     }
   } else if (e.role === "hunter") {
@@ -246,15 +271,15 @@ function botIdleBehavior(e) {
 }
 
 function updateBot(e) {
-  // Re-pick a role now and then (only when not busy carrying something).
-  if (!e.carrying && --e.roleTimer <= 0) {
+  // Re-pick a role now and then (locked nurses never switch).
+  if (!e.fixedRole && !e.carrying && --e.roleTimer <= 0) {
     e.role = chooseRole(e);
     e.roleTimer = 240 + Math.floor(Math.random() * 240);
     e.searchTarget = null;   // fresh goal for the new role
   }
 
-  // Detection: remember where it last saw an enemy.
-  const target = pickTarget(e);
+  // Nurses ignore enemies and just mind the brood; everyone else hunts.
+  const target = e.role === "nurse" ? null : pickTarget(e);
   if (target) {
     e.lastSeen = { x: target.x, y: target.y };
     e.seenTimer = 240;
