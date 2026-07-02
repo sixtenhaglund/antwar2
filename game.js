@@ -42,12 +42,18 @@ function placeRocks() {
     for (let j = 0; ROCK_STEP / 2 + j * ROCK_STEP < WORLD; j++) {
       const x = ROCK_STEP / 2 + i * ROCK_STEP;
       const y = ROCK_STEP / 2 + j * ROCK_STEP;
+      // the outer ring of cubes is the unbreakable world wall
+      const border = i === 0 || j === 0 ||
+        ROCK_STEP / 2 + (i + 1) * ROCK_STEP >= WORLD ||
+        ROCK_STEP / 2 + (j + 1) * ROCK_STEP >= WORLD;
       let clear = false;
       for (const n of nests) {
         if (Math.hypot(x - n.x, y - n.y) < 200) clear = true;   // clear plaza around nests
       }
-      if (clear) continue;
-      const r = { x, y, i, j, size: ROCK_SIZE, hp: 8, maxHp: 8, broken: false };
+      if (clear && !border) continue;   // never clear the border
+      const r = border
+        ? { x, y, i, j, size: ROCK_SIZE, hp: Infinity, maxHp: Infinity, broken: false, border: true }
+        : { x, y, i, j, size: ROCK_SIZE, hp: 8, maxHp: 8, broken: false, border: false };
       rocks.push(r);
       rockGrid.set(rockKey(i, j), r);
     }
@@ -61,7 +67,7 @@ function cellIndex(v) { return Math.round((v - ROCK_STEP / 2) / ROCK_STEP); }
 // Damage the rock in grid cell (i,j); smash it at 0 HP.
 function digAt(i, j, amount) {
   const r = rockGrid.get(rockKey(i, j));
-  if (r && !r.broken) {
+  if (r && !r.broken && !r.border) {   // border wall can't be dug
     r.hp -= amount;
     if (r.hp <= 0) {
       r.broken = true;
@@ -414,9 +420,9 @@ function drawRocks() {
     if (r.broken) continue;
     if (r.x < left || r.x > right || r.y < top || r.y > bottom) continue;
     const s = r.size;
-    ctx.fillStyle = "#4a3823";        // dark dirt wall (only wall-layer rocks show)
+    ctx.fillStyle = r.border ? "#5b5148" : "#4a3823";   // stone wall vs dirt
     ctx.fillRect(r.x - s, r.y - s, s * 2, s * 2);
-    ctx.strokeStyle = "#2c2013";
+    ctx.strokeStyle = r.border ? "#332c26" : "#2c2013";
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x - s, r.y - s, s * 2, s * 2);
     if (r.hp < r.maxHp) {   // dig-progress bar
@@ -496,9 +502,6 @@ function draw() {
   ctx.translate(-player.x, -player.y);
 
   drawGround();
-  ctx.strokeStyle = "#4a3820";
-  ctx.lineWidth = 6;
-  ctx.strokeRect(0, 0, WORLD, WORLD);
   drawRocks();
   drawNests();
   drawEnemies();
