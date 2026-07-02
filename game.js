@@ -124,7 +124,13 @@ function update() {
     const len = Math.hypot(mvx, mvy);          // normalize so diagonals aren't faster
     player.x += (mvx / len) * player.speed;
     player.y += (mvy / len) * player.speed;
-    player.angle = Math.atan2(mvy, mvx);       // face the way we walk
+
+    // glide toward the walk direction instead of snapping
+    const target = Math.atan2(mvy, mvx);
+    let diff = target - player.angle;
+    while (diff >  Math.PI) diff -= 2 * Math.PI;  // take the shorter way around
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    player.angle += diff * 0.2;                 // 0.2 = how fast it turns
   }
 
   // collide with queens and rocks, then stay in the world
