@@ -437,35 +437,41 @@ function drawNests() {
   }
 }
 
-// ---- Fog of war: you only see where your vision reaches; rock blocks it ----
+// ---- Fog of war: blocky per-tile vision (same grid as the rocks) ----
 const VISION = 360;
-function drawFog() {
-  // cast rays outward; each stops at the first rock (or max range)
-  const rays = 100;
-  const step = 9;
-  const poly = [];
-  for (let k = 0; k < rays; k++) {
-    const ang = (k / rays) * Math.PI * 2;
-    const dx = Math.cos(ang), dy = Math.sin(ang);
-    let dist = VISION;
-    for (let t = step; t <= VISION; t += step) {
-      const x = player.x + dx * t, y = player.y + dy * t;
-      if (rockGrid.has(rockKey(cellIndex(x), cellIndex(y)))) { dist = t; break; }
-    }
-    poly.push({ x: player.x + dx * dist, y: player.y + dy * dist });
-  }
 
-  // darken everything OUTSIDE the visible polygon (rect with a polygon hole)
+// Line of sight from the player to grid cell (ti,tj) — the target cell itself
+// doesn't block (so a rock wall you're looking at still shows).
+function cellLOS(ti, tj) {
+  const cx = ROCK_STEP / 2 + ti * ROCK_STEP;
+  const cy = ROCK_STEP / 2 + tj * ROCK_STEP;
+  const dx = cx - player.x, dy = cy - player.y;
+  const dist = Math.hypot(dx, dy);
+  const steps = Math.ceil(dist / (ROCK_STEP * 0.5));
+  for (let s = 1; s < steps; s++) {
+    const t = s / steps;
+    const ci = cellIndex(player.x + dx * t);
+    const cj = cellIndex(player.y + dy * t);
+    if (ci === ti && cj === tj) continue;
+    if (rockGrid.has(rockKey(ci, cj))) return false;
+  }
+  return true;
+}
+
+function drawFog() {
   const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
-  const L = player.x - halfW - 60, T = player.y - halfH - 60;
-  const R = player.x + halfW + 60, B = player.y + halfH + 60;
-  ctx.beginPath();
-  ctx.rect(L, T, R - L, B - T);
-  ctx.moveTo(poly[0].x, poly[0].y);
-  for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(8,5,2,0.92)";
-  ctx.fill("evenodd");
+  const i0 = cellIndex(player.x - halfW) - 1, i1 = cellIndex(player.x + halfW) + 1;
+  const j0 = cellIndex(player.y - halfH) - 1, j1 = cellIndex(player.y + halfH) + 1;
+  const s = ROCK_STEP;
+  ctx.fillStyle = "rgba(8,5,2,0.94)";
+  for (let i = i0; i <= i1; i++) {
+    for (let j = j0; j <= j1; j++) {
+      const cx = ROCK_STEP / 2 + i * ROCK_STEP;
+      const cy = ROCK_STEP / 2 + j * ROCK_STEP;
+      const visible = Math.hypot(cx - player.x, cy - player.y) < VISION && cellLOS(i, j);
+      if (!visible) ctx.fillRect(cx - s / 2, cy - s / 2, s, s);   // dark tile
+    }
+  }
 }
 
 function draw() {
