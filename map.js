@@ -222,17 +222,14 @@ function drawRocks() {
     if (r.broken) continue;
     if (r.x < left || r.x > right || r.y < top || r.y > bottom) continue;
     const s = r.size;
-    ctx.fillStyle = r.border ? "#6f665c" : "#7a5c33";   // stone wall vs dirt wall
+    // darker the more it's been dug (border walls never take damage)
+    const f = r.border ? 1 : (0.4 + 0.6 * (r.hp / r.maxHp));
+    const base = r.border ? [111, 102, 92] : [122, 92, 51];
+    ctx.fillStyle = "rgb(" + Math.round(base[0] * f) + "," + Math.round(base[1] * f) + "," + Math.round(base[2] * f) + ")";
     ctx.fillRect(r.x - s, r.y - s, s * 2, s * 2);
     ctx.strokeStyle = r.border ? "#413a32" : "#553f22";
     ctx.lineWidth = 2;
     ctx.strokeRect(r.x - s, r.y - s, s * 2, s * 2);
-    if (r.hp < r.maxHp) {   // dig-progress bar
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.fillRect(r.x - s, r.y - s - 6, s * 2, 3);
-      ctx.fillStyle = "#d0d0d0";
-      ctx.fillRect(r.x - s, r.y - s - 6, s * 2 * (r.hp / r.maxHp), 3);
-    }
   }
 }
 
