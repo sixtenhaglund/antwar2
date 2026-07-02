@@ -463,7 +463,7 @@ function drawFog() {
   const i0 = cellIndex(player.x - halfW) - 1, i1 = cellIndex(player.x + halfW) + 1;
   const j0 = cellIndex(player.y - halfH) - 1, j1 = cellIndex(player.y + halfH) + 1;
   const s = ROCK_STEP;
-  ctx.fillStyle = "rgba(8,5,2,0.94)";
+  ctx.fillStyle = "#000000";   // fully opaque: unseen tiles are pitch black
   for (let i = i0; i <= i1; i++) {
     for (let j = j0; j <= j1; j++) {
       const cx = ROCK_STEP / 2 + i * ROCK_STEP;
