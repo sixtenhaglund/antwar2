@@ -440,6 +440,16 @@ function drawNests() {
 // ---- Fog of war: blocky per-tile vision (same grid as the rocks) ----
 const VISION = 360;
 
+const NEIGHBORS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+// Is grid cell (i,j) rock that borders an open (dug) cell? (a wall you can see)
+function isWall(i, j) {
+  for (const [di, dj] of NEIGHBORS) {
+    if (!rockGrid.has(rockKey(i + di, j + dj))) return true;
+  }
+  return false;
+}
+
 function drawFog() {
   const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
   // cover a full tile past the screen so edge rocks get fogged too
@@ -451,7 +461,9 @@ function drawFog() {
     for (let j = j0; j <= j1; j++) {
       const cx = ROCK_STEP / 2 + i * ROCK_STEP;
       const cy = ROCK_STEP / 2 + j * ROCK_STEP;
-      const visible = Math.hypot(cx - player.x, cy - player.y) < VISION;   // simple radius
+      let visible = Math.hypot(cx - player.x, cy - player.y) < VISION;   // within light radius
+      // solid rock only shows if it's a wall (touches an open cell)
+      if (visible && rockGrid.has(rockKey(i, j)) && !isWall(i, j)) visible = false;
       // draw 1px bigger so neighboring tiles overlap and leave no seams
       if (!visible) ctx.fillRect(cx - s / 2 - 0.5, cy - s / 2 - 0.5, s + 1, s + 1);
     }
