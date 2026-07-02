@@ -300,7 +300,7 @@ document.getElementById("howBtn").addEventListener("click", () => {
     panel.dataset.showing = "";
   } else {
     panel.innerHTML =
-      "Aim with the <b>mouse</b> · <b>W</b> moves toward the cursor, <b>S</b> back, <b>A/D</b> strafe.<br>" +
+      "Aim with the <b>mouse</b> · <b>W</b> moves toward the cursor, <b>S</b> backs away.<br>" +
       "Left-click to bite &amp; dig through the rock.";
     panel.dataset.showing = "how";
   }
@@ -324,19 +324,11 @@ function update() {
     player.angle += diff * 0.3;
   }
 
-  // W drives toward the cursor; S away from it; A/D are fixed screen left/right.
+  // W drives toward the cursor; S backs away from it.
   const fx = Math.cos(player.angle), fy = Math.sin(player.angle);   // toward cursor
   const sx = player.x, sy = player.y;
-  let mvx = 0, mvy = 0;
-  if (keys["w"] || keys["arrowup"])    { mvx += fx; mvy += fy; }
-  if (keys["s"] || keys["arrowdown"])  { mvx -= fx; mvy -= fy; }
-  if (keys["a"] || keys["arrowleft"])  mvx -= 1;   // screen left
-  if (keys["d"] || keys["arrowright"]) mvx += 1;   // screen right
-  if (mvx !== 0 || mvy !== 0) {
-    const len = Math.hypot(mvx, mvy);          // normalize so diagonals aren't faster
-    player.x += (mvx / len) * player.speed;
-    player.y += (mvy / len) * player.speed;
-  }
+  if (keys["w"] || keys["arrowup"])   { player.x += fx * player.speed; player.y += fy * player.speed; }
+  if (keys["s"] || keys["arrowdown"]) { player.x -= fx * player.speed; player.y -= fy * player.speed; }
 
   // collide with queens and rocks, then stay in the world
   for (const n of nests) keepApart(player, n.queen);
