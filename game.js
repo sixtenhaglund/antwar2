@@ -146,6 +146,8 @@ function spawnEnemy() {
     lastSeen: null,    // last spot it saw the player
     seenTimer: 0,      // counts down after losing sight
     sightRange: 300,
+    searchTarget: null,  // random spot it roams to while searching
+    searchTimer: 0,
   });
 }
 
@@ -164,9 +166,16 @@ function updateEnemy(e) {
     e.seenTimer--;
   }
 
-  // Goal: chase your last-known spot if it remembers you, else march on the
-  // red nest (so it doesn't just teleport-know your live position).
-  const goal = (e.seenTimer > 0 && e.lastSeen) ? e.lastSeen : nests[0].queen;
+  // Goal: chase your last-known spot if it remembers you; otherwise SEARCH —
+  // roam to random spots, picking a new one when it arrives or times out.
+  if (!(e.seenTimer > 0 && e.lastSeen)) {
+    const reached = e.searchTarget && Math.hypot(e.x - e.searchTarget.x, e.y - e.searchTarget.y) < 70;
+    if (!e.searchTarget || reached || --e.searchTimer <= 0) {
+      e.searchTarget = { x: 120 + Math.random() * (WORLD - 240), y: 120 + Math.random() * (WORLD - 240) };
+      e.searchTimer = 420;   // give up on a spot after ~7s
+    }
+  }
+  const goal = (e.seenTimer > 0 && e.lastSeen) ? e.lastSeen : e.searchTarget;
 
   // re-plan a route to the goal every so often
   if (--e.pathTimer <= 0) {
@@ -286,6 +295,7 @@ function startGame() {
   player.y = nests[0].y + 60;
   enemies.length = 0;
   spawnEnemy();   // one blue hunter
+  discovered.clear();
   document.getElementById("menu").style.display = "none";
   document.getElementById("hud").style.display = "block";
   gameState = "playing";
@@ -450,22 +460,27 @@ function isWall(i, j) {
   return false;
 }
 
+const discovered = new Set();   // cells the player has ever seen
+
 function drawFog() {
   const halfW = canvas.width / 2 / zoom, halfH = canvas.height / 2 / zoom;
   // cover a full tile past the screen so edge rocks get fogged too
   const i0 = cellIndex(player.x - halfW - ROCK_STEP), i1 = cellIndex(player.x + halfW + ROCK_STEP);
   const j0 = cellIndex(player.y - halfH - ROCK_STEP), j1 = cellIndex(player.y + halfH + ROCK_STEP);
   const s = ROCK_STEP;
-  ctx.fillStyle = "#000000";   // fully opaque: unseen tiles are pitch black
   for (let i = i0; i <= i1; i++) {
     for (let j = j0; j <= j1; j++) {
       const cx = ROCK_STEP / 2 + i * ROCK_STEP;
       const cy = ROCK_STEP / 2 + j * ROCK_STEP;
+      const key = rockKey(i, j);
       let visible = Math.hypot(cx - player.x, cy - player.y) < VISION;   // within light radius
       // solid rock only shows if it's a wall (touches an open cell)
-      if (visible && rockGrid.has(rockKey(i, j)) && !isWall(i, j)) visible = false;
-      // draw 1px bigger so neighboring tiles overlap and leave no seams
-      if (!visible) ctx.fillRect(cx - s / 2 - 0.5, cy - s / 2 - 0.5, s + 1, s + 1);
+      if (visible && rockGrid.has(key) && !isWall(i, j)) visible = false;
+
+      if (visible) { discovered.add(key); continue; }   // lit now → no fog
+      // dim if we've been here before, pitch black if never seen
+      ctx.fillStyle = discovered.has(key) ? "rgba(0,0,0,0.62)" : "#000000";
+      ctx.fillRect(cx - s / 2 - 0.5, cy - s / 2 - 0.5, s + 1, s + 1);
     }
   }
 }
